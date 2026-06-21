@@ -1,0 +1,9 @@
+# Runtime deps for the MOMO × CS RAG web app (CS/webapp/api.py).
+# Mirrors CS/webapp/requirements.txt so hosts that read the repo-root file work.
+gradio>=4.44
+google-genai>=1.0
+pinecone>=5.0
+python-dotenv>=1.0
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
