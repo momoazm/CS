@@ -230,6 +230,51 @@
         </div>
       </aside>
     </div>
+
+    <!-- ===== MY CALENDAR (private) ===== -->
+    <section id="calSec" class="card p-6 mt-6">
+      <h2 class="section mb-1">My Calendar <span class="mono text-[.6rem] text-muted normal-case tracking-normal">· private</span></h2>
+      <p class="text-sm text-muted mb-4">Create and edit events on your Google Calendar. Locked — enter your admin password to use.</p>
+
+      <!-- lock gate -->
+      <div id="calLock" class="askbox" style="max-width:440px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" class="shrink-0"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke-linecap="round"/></svg>
+        <input id="calPw" type="password" placeholder="Admin password…" aria-label="Admin password" autocomplete="off" />
+        <button id="calUnlock" class="btn btn-gold text-sm shrink-0">Unlock</button>
+      </div>
+      <div id="calMsg" class="mono text-xs text-gold-l mt-2" style="min-height:1rem;"></div>
+
+      <!-- tool (revealed after unlock) -->
+      <div id="calTool" class="hidden mt-5 grid gap-6" style="grid-template-columns:1fr 1fr;">
+        <!-- create / edit form -->
+        <div class="card-2 p-5">
+          <div class="eyebrow mb-4" id="calFormTitle">New event</div>
+          <input type="hidden" id="calEventId" />
+          <label class="block mono text-[.66rem] text-muted mb-1">Title</label>
+          <input id="calTitle" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37]" placeholder="Event title" />
+          <div class="grid grid-cols-2 gap-3 mt-3">
+            <div><label class="block mono text-[.66rem] text-muted mb-1">Start</label><input id="calStart" type="datetime-local" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37]" /></div>
+            <div><label class="block mono text-[.66rem] text-muted mb-1">End</label><input id="calEnd" type="datetime-local" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37]" /></div>
+          </div>
+          <label class="block mono text-[.66rem] text-muted mb-1 mt-3">Location</label>
+          <input id="calLoc" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37]" placeholder="(optional)" />
+          <label class="block mono text-[.66rem] text-muted mb-1 mt-3">Description</label>
+          <textarea id="calDesc" rows="2" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37] resize-y" placeholder="(optional)"></textarea>
+          <div class="flex gap-2 mt-4">
+            <button id="calSave" class="btn btn-gold text-sm">Create event</button>
+            <button id="calCancel" class="btn btn-ghost text-sm hidden">Cancel edit</button>
+          </div>
+        </div>
+        <!-- upcoming list -->
+        <div class="card-2 p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="eyebrow">Upcoming</div>
+            <button id="calRefresh" class="btn btn-ghost text-xs">Refresh</button>
+          </div>
+          <div id="calList"><p class="mono text-xs text-muted">Unlock to load your events.</p></div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- ============ FOOTER ============ -->
@@ -550,6 +595,110 @@
         $('#ask').placeholder = 'Ask a question about your database…';
       }
     })();
+  </script>
+
+  <!-- ===== My Calendar (private) — talks to /api/gcal ===== -->
+  <script>
+  (function(){
+    const $ = s => document.querySelector(s);
+    const API = (location.protocol.startsWith('http') ? location.origin : '') + '/api/gcal';
+    const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    let PW = '', EVENTS = [];
+
+    const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    function setMsg(t, isErr){ const m=$('#calMsg'); m.textContent=t||''; m.style.color = isErr ? '#D26B66' : '#ECD27E'; }
+
+    async function api(action, extra){
+      const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ password:PW, action, timeZone:TZ }, extra||{})) });
+      let j; try { j = await r.json(); } catch(_) { j = { error:'Bad server response ('+r.status+')' }; }
+      if (!r.ok || j.error) throw new Error(j.error || ('HTTP '+r.status));
+      return j;
+    }
+
+    const pad = n => String(n).padStart(2,'0');
+    const toLocalInput = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    function prefillNew(){
+      const s = new Date(); s.setMinutes(0,0,0); s.setHours(s.getHours()+1);
+      const e = new Date(s); e.setHours(e.getHours()+1);
+      $('#calStart').value = toLocalInput(s); $('#calEnd').value = toLocalInput(e);
+    }
+    function fmtWhen(start){
+      const v = start && (start.dateTime || start.date); if (!v) return '';
+      const d = new Date(v);
+      return d.toLocaleString([], start.dateTime
+        ? {weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}
+        : {weekday:'short',month:'short',day:'numeric'});
+    }
+
+    function resetForm(){
+      $('#calEventId').value=''; $('#calTitle').value=''; $('#calLoc').value=''; $('#calDesc').value='';
+      $('#calFormTitle').textContent='New event';
+      $('#calSave').textContent='Create event';
+      $('#calCancel').classList.add('hidden');
+      prefillNew();
+    }
+    function startEdit(ev){
+      $('#calEventId').value = ev.id;
+      $('#calTitle').value = ev.summary || '';
+      $('#calLoc').value = ev.location || '';
+      $('#calDesc').value = ev.description || '';
+      if (ev.start && ev.start.dateTime) $('#calStart').value = toLocalInput(new Date(ev.start.dateTime));
+      if (ev.end && ev.end.dateTime) $('#calEnd').value = toLocalInput(new Date(ev.end.dateTime));
+      $('#calFormTitle').textContent = 'Editing: ' + (ev.summary || '(no title)');
+      $('#calSave').textContent = 'Save changes';
+      $('#calCancel').classList.remove('hidden');
+      $('#calSec').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    async function load(){
+      $('#calList').innerHTML = '<p class="mono text-xs text-muted">Loading…</p>';
+      try {
+        EVENTS = (await api('list')).events || [];
+        if (!EVENTS.length){ $('#calList').innerHTML = '<p class="mono text-xs text-muted">No upcoming events.</p>'; return; }
+        $('#calList').innerHTML = EVENTS.map((ev,i) =>
+          '<div class="frow"><div class="flex-1 min-w-0"><div class="text-sm text-ink truncate">'+esc(ev.summary||'(no title)')+'</div>'+
+          '<div class="mono text-[.62rem] text-muted">'+esc(fmtWhen(ev.start))+'</div></div>'+
+          '<button class="btn btn-ghost text-xs" data-idx="'+i+'">Edit</button></div>').join('');
+        $('#calList').querySelectorAll('[data-idx]').forEach(b => b.addEventListener('click', () => startEdit(EVENTS[+b.dataset.idx])));
+      } catch(e){ $('#calList').innerHTML = '<p class="mono text-xs" style="color:#D26B66">'+esc(e.message)+'</p>'; }
+    }
+
+    async function unlock(){
+      PW = $('#calPw').value;
+      if (!PW){ setMsg('Enter your password.', true); return; }
+      setMsg('Unlocking…');
+      try {
+        await api('list');                       // validates the password
+        $('#calTool').classList.remove('hidden');
+        $('#calLock').classList.add('hidden');
+        setMsg('Unlocked.'); resetForm(); await load();
+      } catch(e){ setMsg(e.message, true); }
+    }
+
+    async function save(){
+      const id = $('#calEventId').value;
+      const payload = {
+        summary: $('#calTitle').value.trim(), start: $('#calStart').value, end: $('#calEnd').value,
+        location: $('#calLoc').value.trim(), description: $('#calDesc').value.trim(),
+      };
+      if (!payload.summary){ setMsg('Title is required.', true); return; }
+      if (!payload.start || !payload.end){ setMsg('Start and end are required.', true); return; }
+      $('#calSave').disabled = true; setMsg(id ? 'Saving…' : 'Creating…');
+      try {
+        if (id){ payload.id = id; await api('update', payload); setMsg('Event updated.'); }
+        else { await api('create', payload); setMsg('Event created.'); }
+        resetForm(); await load();
+      } catch(e){ setMsg(e.message, true); }
+      finally { $('#calSave').disabled = false; }
+    }
+
+    $('#calUnlock').addEventListener('click', unlock);
+    $('#calPw').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+    $('#calSave').addEventListener('click', save);
+    $('#calCancel').addEventListener('click', resetForm);
+    $('#calRefresh').addEventListener('click', load);
+  })();
   </script>
 </body>
 </html>
