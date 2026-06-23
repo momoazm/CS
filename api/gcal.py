@@ -1,17 +1,18 @@
 """
-Vercel Python serverless function: private Google Calendar create/edit tool.
+Vercel Python serverless function: Google Calendar create/edit tool.
 
 POST /api/gcal  with a JSON body:
-  { "password": "...", "action": "list" }
-  { "password": "...", "action": "create",
+  { "action": "list" }
+  { "action": "create",
     "summary": "Title", "start": "2026-06-23T15:00", "end": "2026-06-23T16:00",
     "timeZone": "Africa/Cairo", "location": "...", "description": "..." }
-  { "password": "...", "action": "update", "id": "<eventId>", ...same optional fields... }
+  { "action": "update", "id": "<eventId>", ...same optional fields... }
 
-The function acts as the site owner via a CALENDAR-ONLY OAuth refresh token, gated by a
-shared admin password. Every secret comes from environment variables set in Vercel —
-never the repo:
-  GOOGLE_CAL_CLIENT_ID, GOOGLE_CAL_CLIENT_SECRET, GOOGLE_CAL_REFRESH_TOKEN, CAL_ADMIN_PASSWORD
+The function acts as the site owner via a CALENDAR-ONLY OAuth refresh token. Access is
+gated by Vercel Deployment Protection (the whole site sits behind Vercel login), so this
+endpoint has no separate password. Every secret comes from environment variables set in
+Vercel — never the repo:
+  GOOGLE_CAL_CLIENT_ID, GOOGLE_CAL_CLIENT_SECRET, GOOGLE_CAL_REFRESH_TOKEN
 
 Standard library only — no third-party dependencies.
 """
@@ -19,7 +20,6 @@ from http.server import BaseHTTPRequestHandler
 from datetime import datetime, timezone
 import json
 import os
-import hmac
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -27,7 +27,7 @@ import urllib.error
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 REQUIRED_ENV = ("GOOGLE_CAL_CLIENT_ID", "GOOGLE_CAL_CLIENT_SECRET",
-                "GOOGLE_CAL_REFRESH_TOKEN", "CAL_ADMIN_PASSWORD")
+                "GOOGLE_CAL_REFRESH_TOKEN")
 
 
 def _missing_env():
@@ -104,11 +104,6 @@ class handler(BaseHTTPRequestHandler):
         missing = _missing_env()
         if missing:
             return self._send(500, {"error": "Server not configured. Missing env vars: " + ", ".join(missing)})
-
-        # Constant-time password check (the only gate on this endpoint).
-        if not hmac.compare_digest((p.get("password") or "").encode(),
-                                   os.environ["CAL_ADMIN_PASSWORD"].encode()):
-            return self._send(401, {"error": "Wrong password."})
 
         action = p.get("action")
         try:

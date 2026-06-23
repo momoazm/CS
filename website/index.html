@@ -233,19 +233,12 @@
 
     <!-- ===== MY CALENDAR (private) ===== -->
     <section id="calSec" class="card p-6 mt-6">
-      <h2 class="section mb-1">My Calendar <span class="mono text-[.6rem] text-muted normal-case tracking-normal">· private</span></h2>
-      <p class="text-sm text-muted mb-4">Create and edit events on your Google Calendar. Locked — enter your admin password to use.</p>
+      <h2 class="section mb-1">My Calendar</h2>
+      <p class="text-sm text-muted mb-4">Create and edit events on your Google Calendar.</p>
+      <div id="calMsg" class="mono text-xs text-gold-l mb-3" style="min-height:1rem;"></div>
 
-      <!-- lock gate -->
-      <div id="calLock" class="askbox" style="max-width:440px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" class="shrink-0"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke-linecap="round"/></svg>
-        <input id="calPw" type="password" placeholder="Admin password…" aria-label="Admin password" autocomplete="off" />
-        <button id="calUnlock" class="btn btn-gold text-sm shrink-0">Unlock</button>
-      </div>
-      <div id="calMsg" class="mono text-xs text-gold-l mt-2" style="min-height:1rem;"></div>
-
-      <!-- tool (revealed after unlock) -->
-      <div id="calTool" class="hidden mt-5 grid gap-6" style="grid-template-columns:1fr 1fr;">
+      <!-- tool -->
+      <div id="calTool" class="grid gap-6" style="grid-template-columns:1fr 1fr;">
         <!-- create / edit form -->
         <div class="card-2 p-5">
           <div class="eyebrow mb-4" id="calFormTitle">New event</div>
@@ -597,20 +590,20 @@
     })();
   </script>
 
-  <!-- ===== My Calendar (private) — talks to /api/gcal ===== -->
+  <!-- ===== My Calendar — talks to /api/gcal ===== -->
   <script>
   (function(){
     const $ = s => document.querySelector(s);
     const API = (location.protocol.startsWith('http') ? location.origin : '') + '/api/gcal';
     const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    let PW = '', EVENTS = [];
+    let EVENTS = [];
 
     const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
     function setMsg(t, isErr){ const m=$('#calMsg'); m.textContent=t||''; m.style.color = isErr ? '#D26B66' : '#ECD27E'; }
 
     async function api(action, extra){
       const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(Object.assign({ password:PW, action, timeZone:TZ }, extra||{})) });
+        body: JSON.stringify(Object.assign({ action, timeZone:TZ }, extra||{})) });
       let j; try { j = await r.json(); } catch(_) { j = { error:'Bad server response ('+r.status+')' }; }
       if (!r.ok || j.error) throw new Error(j.error || ('HTTP '+r.status));
       return j;
@@ -664,18 +657,6 @@
       } catch(e){ $('#calList').innerHTML = '<p class="mono text-xs" style="color:#D26B66">'+esc(e.message)+'</p>'; }
     }
 
-    async function unlock(){
-      PW = $('#calPw').value;
-      if (!PW){ setMsg('Enter your password.', true); return; }
-      setMsg('Unlocking…');
-      try {
-        await api('list');                       // validates the password
-        $('#calTool').classList.remove('hidden');
-        $('#calLock').classList.add('hidden');
-        setMsg('Unlocked.'); resetForm(); await load();
-      } catch(e){ setMsg(e.message, true); }
-    }
-
     async function save(){
       const id = $('#calEventId').value;
       const payload = {
@@ -693,11 +674,10 @@
       finally { $('#calSave').disabled = false; }
     }
 
-    $('#calUnlock').addEventListener('click', unlock);
-    $('#calPw').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
     $('#calSave').addEventListener('click', save);
     $('#calCancel').addEventListener('click', resetForm);
     $('#calRefresh').addEventListener('click', load);
+    resetForm(); load();
   })();
   </script>
 </body>
