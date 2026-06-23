@@ -28,6 +28,7 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 REQUIRED_ENV = ("GOOGLE_CAL_CLIENT_ID", "GOOGLE_CAL_CLIENT_SECRET",
                 "GOOGLE_CAL_REFRESH_TOKEN")
+FREQ = {"daily": "DAILY", "weekly": "WEEKLY", "monthly": "MONTHLY", "yearly": "YEARLY"}
 
 
 def _missing_env():
@@ -65,6 +66,31 @@ def _rfc3339(s):
     return s + ":00" if len(s) == 16 else s
 
 
+def _rrule(p):
+    """Build an RRULE string from repeat/interval/count/until, or '' if non-recurring."""
+    freq = FREQ.get((p.get("repeat") or "none").lower())
+    if not freq:
+        return ""
+    rule = "RRULE:FREQ=" + freq
+    try:
+        interval = int(p.get("interval") or 1)
+    except (TypeError, ValueError):
+        interval = 1
+    if interval > 1:
+        rule += ";INTERVAL=" + str(interval)
+    count, until = p.get("count"), p.get("until")
+    if count:
+        try:
+            rule += ";COUNT=" + str(int(count))
+        except (TypeError, ValueError):
+            pass
+    elif until:
+        u = str(until).replace("-", "")
+        if len(u) == 8:                       # YYYYMMDD -> end-of-day UTC
+            rule += ";UNTIL=" + u + "T235959Z"
+    return rule
+
+
 def _event_body(p):
     ev = {}
     if p.get("summary") is not None:
@@ -78,6 +104,9 @@ def _event_body(p):
         ev["start"] = {"dateTime": _rfc3339(p["start"]), "timeZone": tz}
     if p.get("end"):
         ev["end"] = {"dateTime": _rfc3339(p["end"]), "timeZone": tz}
+    rule = _rrule(p)
+    if rule:
+        ev["recurrence"] = [rule]
     return ev
 
 

@@ -253,6 +253,18 @@
           <input id="calLoc" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37]" placeholder="(optional)" />
           <label class="block mono text-[.66rem] text-muted mb-1 mt-3">Description</label>
           <textarea id="calDesc" rows="2" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-3 py-2 text-ink text-sm outline-none focus:border-[#D4AF37] resize-y" placeholder="(optional)"></textarea>
+          <label class="block mono text-[.66rem] text-muted mb-1 mt-3">Repeat</label>
+          <div class="grid grid-cols-3 gap-2 items-center">
+            <select id="calRepeat" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-2 py-2 text-ink text-sm outline-none focus:border-[#D4AF37]">
+              <option value="none">Doesn't repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            <div class="flex items-center gap-2"><span class="mono text-[.66rem] text-muted shrink-0">every</span><input id="calInterval" type="number" min="1" value="1" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-2 py-2 text-ink text-sm outline-none focus:border-[#D4AF37] disabled:opacity-40" /></div>
+            <input id="calUntil" type="date" title="Repeat until (optional)" class="w-full bg-[#07101B] border border-[#14283C] rounded-lg px-2 py-2 text-ink text-sm outline-none focus:border-[#D4AF37] disabled:opacity-40" />
+          </div>
           <div class="flex gap-2 mt-4">
             <button id="calSave" class="btn btn-gold text-sm">Create event</button>
             <button id="calCancel" class="btn btn-ghost text-sm hidden">Cancel edit</button>
@@ -624,8 +636,15 @@
         : {weekday:'short',month:'short',day:'numeric'});
     }
 
+    function syncRepeat(){
+      const on = $('#calRepeat').value !== 'none';
+      $('#calInterval').disabled = !on; $('#calUntil').disabled = !on;
+    }
+    function clearRepeat(){ $('#calRepeat').value='none'; $('#calInterval').value='1'; $('#calUntil').value=''; syncRepeat(); }
+
     function resetForm(){
       $('#calEventId').value=''; $('#calTitle').value=''; $('#calLoc').value=''; $('#calDesc').value='';
+      clearRepeat();
       $('#calFormTitle').textContent='New event';
       $('#calSave').textContent='Create event';
       $('#calCancel').classList.add('hidden');
@@ -638,6 +657,7 @@
       $('#calDesc').value = ev.description || '';
       if (ev.start && ev.start.dateTime) $('#calStart').value = toLocalInput(new Date(ev.start.dateTime));
       if (ev.end && ev.end.dateTime) $('#calEnd').value = toLocalInput(new Date(ev.end.dateTime));
+      clearRepeat();   // list returns single instances; recurrence is edited as a fresh rule
       $('#calFormTitle').textContent = 'Editing: ' + (ev.summary || '(no title)');
       $('#calSave').textContent = 'Save changes';
       $('#calCancel').classList.remove('hidden');
@@ -662,6 +682,7 @@
       const payload = {
         summary: $('#calTitle').value.trim(), start: $('#calStart').value, end: $('#calEnd').value,
         location: $('#calLoc').value.trim(), description: $('#calDesc').value.trim(),
+        repeat: $('#calRepeat').value, interval: $('#calInterval').value, until: $('#calUntil').value,
       };
       if (!payload.summary){ setMsg('Title is required.', true); return; }
       if (!payload.start || !payload.end){ setMsg('Start and end are required.', true); return; }
@@ -677,6 +698,7 @@
     $('#calSave').addEventListener('click', save);
     $('#calCancel').addEventListener('click', resetForm);
     $('#calRefresh').addEventListener('click', load);
+    $('#calRepeat').addEventListener('change', syncRepeat);
     resetForm(); load();
   })();
   </script>
