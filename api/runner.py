@@ -31,9 +31,13 @@ GITHUB_API = "https://api.github.com"
 # (C:\actions-runner for clipping, C:\actions-runner-ranking for ranking); the local helper starts
 # them on demand. This function only talks to GitHub.
 REPOS = {
-    "ranking":  {"slug": "momoazm/ranking-shorts", "workflow": "autopost.yml"},
-    "clipping": {"slug": "momoazm/clipping-auto",  "workflow": "clipping_daily.yml"},
+    "ranking":   {"slug": "momoazm/ranking-shorts", "workflow": "autopost.yml"},
+    "clipping":  {"slug": "momoazm/clipping-auto",   "workflow": "clipping_daily.yml"},
+    "followers": {"slug": "momoazm/follower-race",   "workflow": "follower_race_daily.yml"},
 }
+
+# Repos whose workflow accepts a `dry_run` boolean input (build but don't publish/email).
+DRY_RUN_REPOS = {"clipping", "followers"}
 
 # A run in any of these states means "busy" -> the gate blocks a new dispatch.
 ACTIVE_STATES = {"queued", "in_progress", "requested", "pending", "waiting"}
@@ -144,8 +148,8 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(409, {"error": "A run is already in progress.", **status})
 
             inputs = {}
-            if repo == "clipping" and p.get("dry_run"):
-                inputs["dry_run"] = "true"   # build clips but DON'T upload (safe test)
+            if repo in DRY_RUN_REPOS and p.get("dry_run"):
+                inputs["dry_run"] = "true"   # build but DON'T publish/email (safe test)
 
             branch = _default_branch(cfg["slug"])
             body = {"ref": branch}

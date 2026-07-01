@@ -403,7 +403,7 @@
       <div id="runMsg" class="mono text-xs text-gold-l mt-2" style="min-height:1rem;"></div>
 
       <!-- panel -->
-      <div id="runTool" class="mt-5 grid gap-5" style="grid-template-columns:1fr 1fr;">
+      <div id="runTool" class="mt-5 grid gap-5" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
         <!-- ranking -->
         <div class="card-2 p-5" data-repo="ranking">
           <div class="flex items-center justify-between mb-1">
@@ -423,10 +423,24 @@
           </div>
           <p class="text-xs text-muted mb-3">Daily clips → YouTube + Instagram.</p>
           <label class="flex items-center gap-2 mono text-[.62rem] text-muted mb-3 cursor-pointer select-none">
-            <input type="checkbox" id="clipDry" style="accent-color:#D4AF37;" /> dry run (build clips, don't upload)
+            <input type="checkbox" id="clippingDry" style="accent-color:#D4AF37;" /> dry run (build clips, don't upload)
           </label>
           <button class="abadge" data-run="clipping" type="button">
             <span class="abadge-dot"></span><span class="abadge-label">Run clipping</span>
+          </button>
+        </div>
+        <!-- followers race -->
+        <div class="card-2 p-5" data-repo="followers">
+          <div class="flex items-center justify-between mb-1">
+            <div class="eyebrow">Followers Race</div>
+            <span class="run-last mono text-[.6rem] text-muted"></span>
+          </div>
+          <p class="text-xs text-muted mb-3">A marble race of your IG followers → Instagram Reel.</p>
+          <label class="flex items-center gap-2 mono text-[.62rem] text-muted mb-3 cursor-pointer select-none">
+            <input type="checkbox" id="followersDry" style="accent-color:#D4AF37;" /> dry run (build race, don't email)
+          </label>
+          <button class="abadge" data-run="followers" type="button">
+            <span class="abadge-dot"></span><span class="abadge-label">Run follower race</span>
           </button>
         </div>
       </div>
@@ -911,8 +925,8 @@
   (function(){
     const $ = s => document.querySelector(s);
     const API = (location.protocol.startsWith('http') ? location.origin : '') + '/api/runner';
-    const REPOS = ['ranking', 'clipping'];
-    const BASE_LABEL = { ranking:'Run ranking short', clipping:'Run clipping' };
+    const REPOS = ['ranking', 'clipping', 'followers'];
+    const BASE_LABEL = { ranking:'Run ranking short', clipping:'Run clipping', followers:'Run follower race' };
     const timers = {};
 
     function setMsg(t, isErr){ const m=$('#runMsg'); m.textContent=t||''; m.style.color = isErr ? '#D26B66' : '#ECD27E'; }
@@ -971,7 +985,8 @@
       b.disabled = true; setMsg('Dispatching '+repo+'…');
       try {
         const body = { repo };
-        if (repo === 'clipping' && $('#clipDry') && $('#clipDry').checked) body.dry_run = true;
+        const dry = $('#'+repo+'Dry');           // any repo with a "#<repo>Dry" checkbox supports dry run
+        if (dry && dry.checked) body.dry_run = true;
         await apiPost(body);
         setMsg(repo + ' started — your runner will spin up and make the video.');
         render(repo, { running:true, last:null });
