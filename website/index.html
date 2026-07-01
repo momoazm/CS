@@ -210,6 +210,25 @@
     .cal-ev:hover { transform:scale(1.06) rotate(-1deg); background:rgba(212,175,55,.34); }
     .cal-more { font-size:.55rem; color:#D4AF37; margin-top:.1rem; }
 
+    /* ===================== GUMBALL COMPANIONS (auto-populating mascots) =====================
+       A tiny cast of Gumball-universe characters peeks over the top edge of every card and
+       section. A MutationObserver (see the script at the end of body) attaches a fresh
+       companion to any NEW card/section that appears — so as the site grows, more characters
+       show up on their own, with zero manual placement. */
+    .gcomp { position:absolute; z-index:6; width:38px; height:38px; pointer-events:none;
+      filter:drop-shadow(0 3px 5px rgba(0,0,0,.5)); opacity:.94;
+      animation:gcompBob 4.6s ease-in-out infinite; will-change:transform; }
+    .gcomp svg { width:100%; height:100%; display:block; }
+    .gcomp .gc-eyes { transform-box:fill-box; transform-origin:center; animation:gcompBlink 6.5s infinite; }
+    .gcomp.tr { top:-16px; right:16px; }
+    .gcomp.tl { top:-16px; left:16px; }
+    @keyframes gcompBob  { 0%,100%{ transform:translateY(0) rotate(-3deg);} 50%{ transform:translateY(-5px) rotate(3deg);} }
+    @keyframes gcompBlink{ 0%,94%,100%{ transform:scaleY(1);} 97%{ transform:scaleY(.1);} }
+    /* the companion gives a happy pop when its host card is hovered */
+    [data-gumball]:hover > .gcomp { animation:gcompPop .55s cubic-bezier(.34,1.7,.5,1); opacity:1; }
+    @keyframes gcompPop { 0%{ transform:scale(1);} 42%{ transform:scale(1.3) rotate(8deg);} 100%{ transform:scale(1);} }
+    @media (max-width:640px){ .gcomp{ width:30px; height:30px; top:-13px; } }
+
     @media (max-width: 820px){ #calTool{ grid-template-columns:1fr !important; } }
     @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
   </style>
@@ -969,6 +988,84 @@
   <script>
   (function(){
     document.querySelectorAll('main .card').forEach((el,i) => { el.style.animationDelay = Math.min(i*55, 330)+'ms'; });
+  })();
+  </script>
+
+  <!-- ===== Gumball companions: little mascots that peek from every card,
+             and auto-appear on any new card/section as the site grows ===== -->
+  <script>
+  (function(){
+    // ---- the cast (small inline SVGs, matching the hero Gumball's eye style) ----
+    function gumball(){ return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 20 L12 5 L27 15 Z" fill="#4FA3DC"/><path d="M46 20 L52 5 L37 15 Z" fill="#4FA3DC"/>
+      <ellipse cx="32" cy="34" rx="22" ry="20" fill="#4FA3DC"/><ellipse cx="32" cy="38" rx="17" ry="14" fill="#5FB0E0"/>
+      <g class="gc-eyes"><ellipse cx="25" cy="30" rx="8" ry="10" fill="#fff"/><ellipse cx="39" cy="30" rx="8" ry="10" fill="#fff"/>
+      <circle cx="27" cy="33" r="3" fill="#15202b"/><circle cx="37" cy="33" r="3" fill="#15202b"/>
+      <circle cx="25.6" cy="31" r="1" fill="#fff"/><circle cx="35.6" cy="31" r="1" fill="#fff"/></g>
+      <path d="M26 42 Q32 48 38 42" stroke="#15202b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <path d="M8 33 H20 M8 39 H20" stroke="#3f86bb" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M56 33 H44 M56 39 H44" stroke="#3f86bb" stroke-width="1.8" stroke-linecap="round"/></svg>`; }
+    function darwin(){ return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 32 Q5 26 8 34 Q5 42 14 38 Z" fill="#E07E2A"/><path d="M50 32 Q59 26 56 34 Q59 42 50 38 Z" fill="#E07E2A"/>
+      <ellipse cx="32" cy="32" rx="20" ry="18" fill="#F59A3C"/><ellipse cx="32" cy="35" rx="15" ry="13" fill="#FBB35E"/>
+      <g class="gc-eyes"><ellipse cx="26" cy="28" rx="8" ry="10" fill="#fff"/><ellipse cx="38" cy="28" rx="8" ry="10" fill="#fff"/>
+      <circle cx="27" cy="31" r="3" fill="#15202b"/><circle cx="37" cy="31" r="3" fill="#15202b"/>
+      <circle cx="25.6" cy="29" r="1" fill="#fff"/><circle cx="35.6" cy="29" r="1" fill="#fff"/></g>
+      <path d="M27 40 Q32 45 37 40" stroke="#B85E17" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M27 49 V55 M37 49 V55" stroke="#E07E2A" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="26" cy="56" rx="5" ry="3" fill="#fff"/><ellipse cx="38" cy="56" rx="5" ry="3" fill="#fff"/></svg>`; }
+    function anais(){ return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="24" cy="12" rx="5" ry="13" fill="#F3A6C8"/><ellipse cx="40" cy="12" rx="5" ry="13" fill="#F3A6C8"/>
+      <ellipse cx="24" cy="12" rx="2.4" ry="9" fill="#E77CAB"/><ellipse cx="40" cy="12" rx="2.4" ry="9" fill="#E77CAB"/>
+      <ellipse cx="32" cy="36" rx="19" ry="17" fill="#F3A6C8"/>
+      <g class="gc-eyes"><ellipse cx="25" cy="34" rx="7" ry="9" fill="#fff"/><ellipse cx="39" cy="34" rx="7" ry="9" fill="#fff"/>
+      <circle cx="26" cy="37" r="3" fill="#15202b"/><circle cx="38" cy="37" r="3" fill="#15202b"/>
+      <circle cx="24.8" cy="35" r="1" fill="#fff"/><circle cx="36.8" cy="35" r="1" fill="#fff"/></g>
+      <circle cx="32" cy="42" r="2" fill="#D75F97"/>
+      <path d="M28 45 Q32 48 36 45" stroke="#D75F97" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`; }
+    function candy(i){ const cols=['#E86A5E','#3FA9C0','#E5CE93','#C77DB0','#7CC26B']; const c=cols[i%cols.length];
+      return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="34" r="22" fill="${c}"/><circle cx="32" cy="34" r="22" fill="none" stroke="rgba(0,0,0,.14)" stroke-width="2"/>
+      <ellipse cx="24" cy="25" rx="7" ry="4.5" fill="rgba(255,255,255,.55)" transform="rotate(-25 24 25)"/>
+      <g class="gc-eyes"><circle cx="26" cy="34" r="3.4" fill="#15202b"/><circle cx="38" cy="34" r="3.4" fill="#15202b"/>
+      <circle cx="25" cy="33" r="1" fill="#fff"/><circle cx="37" cy="33" r="1" fill="#fff"/></g>
+      <path d="M26 41 Q32 46 38 41" stroke="#15202b" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`; }
+
+    const CAST = [gumball, darwin, anais, candy];
+    const CORNERS = ['tr','tl'];
+    let n = 0;
+
+    // Which elements host a companion. Panels + sections only — never tiny/util nodes
+    // (calendar cells, buttons) so it stays tasteful and cheap as the DOM churns.
+    const SELECTOR = 'main .card, main .card-2, footer, aside .card';
+
+    function decorate(){
+      document.querySelectorAll(SELECTOR).forEach(el => {
+        if (el.hasAttribute('data-gumball')) return;                 // already done
+        if (el.querySelector(':scope > .hero-char')) return;         // hero already has a mascot
+        el.setAttribute('data-gumball','');
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        const wrap = document.createElement('div');
+        wrap.className = 'gcomp ' + CORNERS[n % CORNERS.length];
+        wrap.setAttribute('aria-hidden','true');
+        wrap.style.animationDelay = ((n % 6) * 0.4).toFixed(1) + 's';
+        const make = CAST[n % CAST.length];
+        wrap.innerHTML = make(n);                                    // candy uses n for its colour
+        el.appendChild(wrap);
+        n++;
+      });
+    }
+
+    decorate();
+    // Grow with the site: any card/section added later (even dynamically) gets its own
+    // companion automatically. Debounced; appending .gcomp doesn't re-trigger work because
+    // decorated hosts carry data-gumball and .gcomp itself never matches SELECTOR.
+    let t;
+    new MutationObserver(muts => {
+      if (muts.some(m => [...m.addedNodes].some(x => x.nodeType === 1))){
+        clearTimeout(t); t = setTimeout(decorate, 150);
+      }
+    }).observe(document.body, { childList:true, subtree:true });
   })();
   </script>
 </body>
