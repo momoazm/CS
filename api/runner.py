@@ -99,20 +99,18 @@ def _status(repo):
 
 
 def _link_status(repo):
-    """Latest-commit status for a link-only repo. Degrades to just the link when the
-    PAT can't see the repo (no Contents:read yet) instead of erroring the page."""
+    """Last-updated status for a link-only repo, via repo metadata (pushed_at) — needs only
+    the Metadata:read permission every fine-grained PAT already has (verified 2026-07-02:
+    the PAT is all-repos, Actions:rw + Metadata:read, no Contents). Degrades to just the
+    link on any API failure instead of erroring the page."""
     slug = LINK_REPOS[repo]["slug"]
     out = {"ok": True, "repo": repo, "kind": "link",
            "html_url": "https://github.com/" + slug, "last_commit": None}
     try:
-        _, data = _gh("/repos/%s/commits?per_page=1" % slug)
-        if isinstance(data, list) and data:
-            commit = data[0].get("commit") or {}
-            out["last_commit"] = {
-                "message": (commit.get("message") or "").split("\n")[0],
-                "date": (commit.get("committer") or {}).get("date"),
-                "html_url": data[0].get("html_url"),
-            }
+        _, data = _gh("/repos/%s" % slug)
+        pushed = (data or {}).get("pushed_at")
+        if pushed:
+            out["last_commit"] = {"date": pushed}
     except Exception:
         pass
     return out
