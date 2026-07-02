@@ -108,11 +108,22 @@
           </div>
           <p class="text-xs text-muted mb-3">A marble race of your IG followers → Instagram Reel.</p>
           <label class="flex items-center gap-2 mono text-[.62rem] text-muted mb-3 cursor-pointer select-none">
-            <input type="checkbox" id="followersDry" style="accent-color:#D4AF37;" /> dry run (build race, don't email)
+            <input type="checkbox" id="followersDry" style="accent-color:#D4AF37;" /> dry run (build race, don't post)
           </label>
           <button class="abadge" data-run="followers" type="button">
             <span class="abadge-dot"></span><span class="abadge-label">Run follower race</span>
           </button>
+        </div>
+        <!-- workspace (second brain) — link card, nothing to dispatch -->
+        <div class="card-2 p-5" data-repo="workspace">
+          <div class="flex items-center justify-between mb-1">
+            <div class="eyebrow">Momo Workspace</div>
+            <span class="run-last mono text-[.6rem] text-muted"></span>
+          </div>
+          <p class="text-xs text-muted mb-4">The second brain behind every pipeline — projects, skills, agents, and the Momo graph.</p>
+          <a class="abadge" style="text-decoration:none;" href="https://github.com/momoazm/momo-workspace" target="_blank" rel="noopener">
+            <span class="abadge-dot"></span><span class="abadge-label">Open workspace repo</span>
+          </a>
         </div>
       </div>
     </section>
@@ -204,6 +215,16 @@
 
     document.querySelectorAll('.abadge[data-run]').forEach(b => b.addEventListener('click', () => run(b.dataset.run)));
     REPOS.forEach(refresh);
+
+    // Workspace card is link-only: best-effort "updated Xh ago" from the latest commit.
+    // Stays silent if the API token can't see the repo — the card still works as a link.
+    (async () => {
+      try {
+        const st = await apiGet('workspace');
+        const d = st.last_commit && st.last_commit.date;
+        if (d) lastEl('workspace').textContent = 'updated ' + fmtAgo(d);
+      } catch(_){}
+    })();
   })();
   </script>
 </body>

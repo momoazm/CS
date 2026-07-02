@@ -36,6 +36,12 @@ REPOS = {
     "followers": {"slug": "momoazm/follower-race",   "workflow": "follower_race_daily.yml"},
 }
 
+# Non-pipeline repos the site links to. GET-only: status = the latest commit (needs the PAT to
+# have Contents:read on the repo); there is nothing to dispatch.
+LINK_REPOS = {
+    "workspace": {"slug": "momoazm/momo-workspace"},
+}
+
 # Repos whose workflow accepts a `dry_run` boolean input (build but don't publish/email).
 DRY_RUN_REPOS = {"clipping", "followers"}
 
@@ -92,6 +98,26 @@ def _status(repo):
     }
 
 
+def _link_status(repo):
+    """Latest-commit status for a link-only repo. Degrades to just the link when the
+    PAT can't see the repo (no Contents:read yet) instead of erroring the page."""
+    slug = LINK_REPOS[repo]["slug"]
+    out = {"ok": True, "repo": repo, "kind": "link",
+           "html_url": "https://github.com/" + slug, "last_commit": None}
+    try:
+        _, data = _gh("/repos/%s/commits?per_page=1" % slug)
+        if isinstance(data, list) and data:
+            commit = data[0].get("commit") or {}
+            out["last_commit"] = {
+                "message": (commit.get("message") or "").split("\n")[0],
+                "date": (commit.get("committer") or {}).get("date"),
+                "html_url": data[0].get("html_url"),
+            }
+    except Exception:
+        pass
+    return out
+
+
 def _default_branch(slug):
     _, data = _gh("/repos/%s" % slug)
     return (data or {}).get("default_branch") or "main"
@@ -115,6 +141,8 @@ class handler(BaseHTTPRequestHandler):
         if missing:
             return self._send(500, {"error": "Server not configured. Missing env vars: " + ", ".join(missing)})
         repo = self._repo_param()
+        if repo in LINK_REPOS:
+            return self._send(200, _link_status(repo))
         if repo not in REPOS:
             # No/unknown repo -> harmless health ping (no secrets revealed).
             return self._send(200, {"ok": True, "service": "runner", "repos": list(REPOS)})
