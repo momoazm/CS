@@ -134,13 +134,10 @@ def ask(body: AskBody):
 if (WEBSITE_DIR / "brand").is_dir():
     api.mount("/brand", StaticFiles(directory=str(WEBSITE_DIR / "brand")), name="brand")
 
-
-@api.get("/")
-def index():
-    f = WEBSITE_DIR / "index.html"
-    if not f.exists():
-        raise HTTPException(status_code=404, detail="website/index.html not found")
-    return FileResponse(str(f))
+# Multi-page site: serve every page + assets/ (html=True maps "/" -> index.html).
+# Mounted last so the /api routes above keep precedence.
+if WEBSITE_DIR.is_dir():
+    api.mount("/", StaticFiles(directory=str(WEBSITE_DIR), html=True), name="site")
 
 
 if __name__ == "__main__":

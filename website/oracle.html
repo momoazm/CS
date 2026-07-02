@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MOMO — Knowledge Oracle</title>
+  <meta name="description" content="Upload your archive. Ask it anything — every answer cites its source." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/tw.js"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+
+  <style>
+    /* dropzone */
+    .dropzone { border:1.5px dashed rgba(212,175,55,.45); background:#07101B; border-radius:14px; padding:1.4rem;
+      text-align:center; cursor:pointer; transition:background-color .15s ease, border-color .15s ease; }
+    .dropzone:hover, .dropzone.drag { background:rgba(212,175,55,.07); border-color:#D4AF37; }
+
+    /* ask field */
+    .askbox { display:flex; align-items:center; gap:.6rem; background:#07101B; border:1px solid rgba(212,175,55,.5);
+      border-radius:14px; padding:.5rem .55rem .5rem 1rem; }
+    .askbox:focus-within { border-color:#ECD27E; box-shadow:0 0 0 3px rgba(212,175,55,.18); }
+    .askbox input { flex:1; background:transparent; border:none; outline:none; color:#F2E9D8; font-size:1rem; font-family:'Poppins',sans-serif; }
+    .askbox input::placeholder { color:#8F836C; }
+    .askbox input:disabled { color:#8F836C; }
+
+    /* answer */
+    .ans-meta { font-family:'Space Mono',monospace; font-size:.7rem; color:#CFC3A6; margin-bottom:.6rem; }
+    .ans-body { font-size:1rem; line-height:1.6; color:#F2E9D8; }
+    .ans-empty { color:#A2957C; }
+    mark { background:rgba(212,175,55,.26); color:#F6E9C6; padding:0 .12em; border-radius:3px; }
+    .cites { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.9rem; }
+    .chip { font-family:'Space Mono',monospace; font-size:.66rem; font-weight:700; color:#ECD27E;
+      background:rgba(212,175,55,.10); border:1px solid rgba(212,175,55,.38); border-radius:8px; padding:.22rem .55rem;
+      transition:background-color .15s ease, transform .15s ease; }
+    a.chip:hover { background:rgba(212,175,55,.2); transform:translateY(-1px); }
+
+    .psg-h { font-family:'Cinzel',serif; font-weight:700; font-size:.92rem; color:#F2E9D8; margin:.2rem 0 .7rem; }
+    .psg { background:#07101B; border:1px solid #14283C; border-left:2px solid #D4AF37; border-radius:8px; padding:.8rem .9rem; margin-bottom:.7rem; }
+    .psg-cap { font-family:'Space Mono',monospace; font-size:.66rem; color:#CFC3A6; margin-bottom:.4rem; }
+    .psg-n { color:#D4AF37; font-weight:700; }
+    .psg p { font-size:.86rem; line-height:1.55; color:#E6DBC3; }
+    .psg.flash { animation:psgflash 1.2s ease; }
+    @keyframes psgflash { 0%,100%{ background:#07101B;} 25%{ background:rgba(212,175,55,.12);} }
+
+    /* file rows */
+    .frow { display:flex; align-items:center; gap:.7rem; padding:.5rem 0; border-top:1px solid #14283C; }
+    .frow:first-child { border-top:none; }
+    .frm-x { color:#A2957C; cursor:pointer; line-height:1; transition:color .15s ease; }
+    .frm-x:hover { color:#D26B66; }
+
+    @media (max-width: 980px){ .grid-main { grid-template-columns:1fr !important; } }
+  </style>
+</head>
+
+<body class="font-body" data-page="oracle">
+  <div class="bg-fx"></div>
+  <div class="grain"></div>
+
+  <header class="site-head">
+    <div class="container-x h-16 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center gap-3 shrink-0" aria-label="MOMO home">
+        <img src="brand/logo.png" alt="MOMO" class="h-10 w-auto object-contain" />
+        <span class="display font-bold text-[17px] tracking-[.22em] text-ink hidden md:inline">MOMO</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Home</a>
+        <a href="oracle.html" data-nav="oracle">Oracle</a>
+        <a href="study.html" data-nav="study">Study</a>
+        <a href="calendar.html" data-nav="calendar">Calendar</a>
+        <a href="pipelines.html" data-nav="pipelines">Pipelines</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container-x pb-16">
+
+    <div class="page-head flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <div class="eyebrow">Retrieval-augmented answers</div>
+        <h1>Knowledge Oracle</h1>
+        <p>Upload your archive and ask it anything — every answer comes with the exact passage it was pulled from.</p>
+      </div>
+      <div class="flex items-center gap-4 pb-1">
+        <span id="mode" class="mono text-[.62rem] flex items-center gap-1.5 text-muted"><span id="modeDot" class="w-2 h-2 rounded-full bg-muted"></span><span id="modeText">connecting…</span></span>
+        <button id="clearBtn" class="btn btn-ghost text-sm" disabled>Clear database</button>
+      </div>
+    </div>
+
+    <div class="grid grid-main gap-6" style="grid-template-columns:1fr 300px;">
+
+      <!-- ===== CONSOLE ===== -->
+      <div class="min-w-0 space-y-6">
+
+        <!-- upload -->
+        <div class="card p-6">
+          <h2 class="section mb-4">Add to your database</h2>
+          <div id="drop" class="dropzone" role="button" tabindex="0" aria-label="Upload files">
+            <input id="fileInput" type="file" multiple accept=".txt,.md,.markdown,.csv,.json,.log,.pdf" hidden />
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.7" class="mx-auto mb-2"><path d="M12 16V5M12 5L7 10M12 5l5 5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/></svg>
+            <div class="text-sm text-ink font-medium">Drop files here or <span class="text-gold">browse</span></div>
+            <div class="mono text-[.66rem] text-muted mt-1">PDF, TXT, MD, CSV, JSON, LOG · processed in your browser</div>
+          </div>
+          <div id="status" class="mono text-xs text-gold-l mt-3" style="min-height:1rem;"></div>
+        </div>
+
+        <!-- ask -->
+        <div class="card p-6" data-mascot="think tr">
+          <h2 class="section mb-4">Ask the database</h2>
+          <div class="askbox mb-5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" class="shrink-0"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg>
+            <input id="ask" type="text" placeholder="Upload a file first to ask a question…" aria-label="Ask a question" disabled />
+            <button id="askBtn" class="btn btn-gold text-sm shrink-0" disabled>Ask</button>
+          </div>
+          <div id="answer" class="card-2 p-5">
+            <p class="ans-body ans-empty">Your answer will appear here, grounded in the files you upload — with citations to the exact source passages.</p>
+          </div>
+          <div id="passages" class="mt-5"></div>
+        </div>
+      </div>
+
+      <!-- ===== SIDEBAR ===== -->
+      <aside class="space-y-4">
+        <div class="card p-5">
+          <div class="eyebrow mb-4">Database</div>
+          <div class="grid grid-cols-2 gap-y-5 gap-x-3 mb-5">
+            <div><div id="statFiles" class="display text-2xl text-ink leading-none">0</div><div class="mono text-[.66rem] text-muted mt-1">files</div></div>
+            <div><div id="statChunks" class="display text-2xl text-gold-l leading-none">0</div><div class="mono text-[.66rem] text-muted mt-1">passages</div></div>
+          </div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="mono text-[.66rem] text-muted">Index</span>
+            <span id="statHealth" class="mono text-[.66rem] text-gold-l">empty</span>
+          </div>
+          <div class="meter"><span id="meterBar" style="width:0%"></span></div>
+        </div>
+
+        <div class="card p-5">
+          <div class="eyebrow mb-3">Indexed files</div>
+          <div id="fileList"><p class="mono text-xs text-muted">No files yet.</p></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="border-t border-line" style="background:#07101B;">
+    <div class="container-x py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <a href="index.html" class="flex items-center gap-3"><img src="brand/logo.png" alt="MOMO" class="h-9 w-auto object-contain" /></a>
+      <div class="mono text-xs text-muted">© 2026 MOMO · Answers, with their receipts.</div>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+  <script src="assets/site.js"></script>
+
+  <script type="module">
+    import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
+
+    // ===== CS RAG backend wiring =====================================
+    // Same-origin /api when served by CS/webapp/api.py; otherwise default to
+    // a local bridge on :8000. Override with ?api=http://host:port/api
+    const API_BASE = new URLSearchParams(location.search).get('api') ||
+      (location.protocol.startsWith('http') ? location.origin + '/api' : 'http://localhost:8000/api');
+    let BACKEND = false;
+
+    async function detectBackend(){
+      try {
+        const r = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(2500) });
+        if (r.ok){ await r.json(); BACKEND = true; setMode('online'); return; }
+      } catch (e) {}
+      BACKEND = false; setMode('offline');
+    }
+    function setMode(m){
+      const dot = $('#modeDot'), txt = $('#modeText');
+      if (m === 'online'){ dot.style.background = '#D4AF37'; txt.textContent = 'CS RAG · connected'; txt.style.color = '#ECD27E'; }
+      else { dot.style.background = '#8F836C'; txt.textContent = 'in-browser mode'; txt.style.color = '#CFC3A6'; }
+    }
+
+    async function backendIngest(fileList, text){
+      const fd = new FormData();
+      for (const f of fileList) fd.append('files', f, f.name);
+      if (text) fd.append('text', text);
+      const r = await fetch(API_BASE + '/ingest', { method:'POST', body: fd });
+      if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || ('HTTP '+r.status));
+      return r.json();
+    }
+    async function backendAsk(question){
+      const r = await fetch(API_BASE + '/ask', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question })
+      });
+      if (!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || ('HTTP '+r.status));
+      return r.json();
+    }
+    async function backendStats(){
+      try { const r = await fetch(API_BASE + '/stats'); const j = await r.json(); return j.ok ? j.vectors : null; }
+      catch (e){ return null; }
+    }
+
+    const STOP = new Set("a an and are as at be but by for from has have he in is it its of on or she that the their them they this to was were what when where which who will with you your we our not".split(" "));
+    const $ = s => document.querySelector(s);
+    let fileSeq = 0;
+    const db = { files: [], chunks: [], idf: new Map(), avgdl: 0 };
+
+    const tokenize = t => (t.toLowerCase().match(/[a-z0-9]+/g) || []).filter(w => w.length > 1 && !STOP.has(w));
+
+    function chunkText(text){
+      const paras = text.split(/\n\s*\n/).map(p => p.replace(/\s+/g,' ').trim()).filter(Boolean);
+      const chunks = []; let buf = '';
+      const flush = () => { if (buf.trim()) { chunks.push(buf.trim()); buf=''; } };
+      for (const p of paras){
+        if (buf && (buf+' '+p).split(' ').length > 130) flush();
+        buf = buf ? buf+' '+p : p;
+        if (buf.split(' ').length > 90) flush();
+      }
+      flush();
+      if (!chunks.length && text.trim()){
+        const w = text.replace(/\s+/g,' ').trim().split(' ');
+        for (let i=0;i<w.length;i+=100) chunks.push(w.slice(i,i+100).join(' '));
+      }
+      return chunks;
+    }
+
+    async function readFile(file){
+      const ext = (file.name.split('.').pop()||'').toLowerCase();
+      if (ext === 'pdf'){
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        let out = '';
+        for (let p=1; p<=pdf.numPages; p++){
+          const page = await pdf.getPage(p);
+          const tc = await page.getTextContent();
+          out += tc.items.map(i => i.str).join(' ') + '\n\n';
+        }
+        return out;
+      }
+      return await file.text();
+    }
+
+    function buildIndex(){
+      const N = db.chunks.length || 1;
+      const df = new Map(); let total = 0;
+      for (const c of db.chunks){
+        c.toks = tokenize(c.text); c.dl = c.toks.length; total += c.dl;
+        c.tf = new Map();
+        for (const w of c.toks) c.tf.set(w,(c.tf.get(w)||0)+1);
+        for (const w of new Set(c.toks)) df.set(w,(df.get(w)||0)+1);
+      }
+      db.avgdl = total / N;
+      db.idf = new Map();
+      for (const [w,d] of df) db.idf.set(w, Math.log(1 + (N - d + 0.5)/(d + 0.5)));
+    }
+
+    function search(query){
+      const q = tokenize(query); if (!q.length) return [];
+      const k1=1.5, b=0.75, avgdl=db.avgdl||1;
+      return db.chunks.map(c => {
+        let s = 0;
+        for (const t of q){
+          const f = c.tf.get(t); if (!f) continue;
+          s += (db.idf.get(t)||0) * (f*(k1+1)) / (f + k1*(1 - b + b*c.dl/avgdl));
+        }
+        return { c, s };
+      }).filter(x => x.s > 0).sort((a,b) => b.s - a.s).slice(0,6);
+    }
+
+    const esc = s => s.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    function highlight(text, query){
+      const terms = [...new Set(tokenize(query))].sort((a,b)=>b.length-a.length);
+      let html = esc(text);
+      for (const t of terms)
+        html = html.replace(new RegExp('\\b('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')\\b','gi'),'<mark>$1</mark>');
+      return html;
+    }
+    const splitSentences = t => t.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [t];
+
+    function buildAnswer(query, results){
+      const qset = new Set(tokenize(query));
+      const cand = [];
+      results.slice(0,3).forEach(r => {
+        for (const sen of splitSentences(r.c.text)){
+          const hits = tokenize(sen).filter(w => qset.has(w)).length;
+          if (hits > 0) cand.push({ sen: sen.trim(), hits });
+        }
+      });
+      cand.sort((a,b) => b.hits - a.hits);
+      const picked = [], seen = new Set();
+      for (const c of cand){ if (seen.has(c.sen)) continue; seen.add(c.sen); picked.push(c.sen); if (picked.length>=3) break; }
+      if (!picked.length && results.length) picked.push(results[0].c.text.slice(0,260) + '…');
+      return picked.join(' ');
+    }
+
+    // Unified renderer. sources: [{name, text, meta?}]; answerIsHTML pre-highlighted.
+    function renderAnswer(metaLine, answerHTML, sources, query){
+      const ansEl = $('#answer');
+      const cites = sources.map((s,i)=>`<a class="chip" href="#src-${i+1}" data-src="${i+1}">[${i+1}] ${esc(s.name)}</a>`).join('');
+      ansEl.innerHTML =
+        `<div class="ans-meta">${esc(metaLine)}</div>`+
+        `<p class="ans-body">${answerHTML}</p>`+
+        (cites ? `<div class="cites">${cites}</div>` : '');
+      $('#passages').innerHTML = sources.length ? (
+        `<div class="psg-h">Sources</div>` +
+        sources.map((s,i)=>`<div class="psg" id="src-${i+1}"><div class="psg-cap"><span class="psg-n">[${i+1}]</span> ${esc(s.name)}${s.meta?` · ${esc(s.meta)}`:''}</div><p>${query ? highlight(s.text, query) : esc(s.text)}</p></div>`).join('')
+      ) : '';
+      ansEl.querySelectorAll('[data-src]').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault();
+        const el = $('#src-'+a.dataset.src);
+        el.scrollIntoView({behavior:'smooth',block:'center'});
+        el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      }));
+    }
+
+    async function ask(){
+      const query = $('#ask').value.trim();
+      if (!query) return;
+
+      if (BACKEND){
+        const ansEl = $('#answer');
+        ansEl.innerHTML = `<div class="ans-meta">asking CS RAG…</div><p class="ans-body ans-empty">Embedding your question, searching Pinecone, and generating an answer…</p>`;
+        $('#passages').innerHTML = '';
+        try {
+          const data = await backendAsk(query);
+          const sources = (data.sources || []).map(s => ({
+            name: s.name, text: s.snippet || '(no text stored for this item)',
+            meta: [s.modality, s.score != null ? 'score ' + s.score : ''].filter(Boolean).join(' · ')
+          }));
+          const meta = sources.length ? `answer · ${sources.length} source${sources.length>1?'s':''} · Gemini + Pinecone` : 'answer · CS RAG';
+          renderAnswer(meta, esc(data.answer || '').replace(/\n/g,'<br>'), sources, query);
+        } catch (e){
+          ansEl.innerHTML = `<div class="ans-meta">error</div><p class="ans-body ans-empty">CS RAG couldn’t answer: ${esc(e.message)}</p>`;
+        }
+        return;
+      }
+
+      // ----- offline (in-browser) -----
+      if (!db.chunks.length){ toast('Upload at least one file first.'); return; }
+      const results = search(query);
+      if (!results.length){
+        renderAnswer('no match', '<span class="ans-empty">I couldn’t find anything about that in your files. Try different keywords, or add more documents.</span>', [], query);
+        return;
+      }
+      const answer = buildAnswer(query, results);
+      const sources = results.slice(0,4).map(r => ({ name: r.c.fileName, text: r.c.text }));
+      renderAnswer(`answer · ${results.length} passage${results.length>1?'s':''} retrieved · ${db.files.length} file${db.files.length>1?'s':''} in database`,
+        highlight(answer, query), sources, query);
+    }
+
+    async function handleFiles(list){
+      const files = [...list]; if (!files.length) return;
+
+      if (BACKEND){
+        setStatus(`Uploading & embedding ${files.length} file${files.length>1?'s':''} into CS RAG…`);
+        try {
+          const res = await backendIngest(files, '');
+          // track names locally just for the sidebar list
+          files.forEach(f => { if (!db.files.some(x => x.name === f.name)) db.files.push({ id:++fileSeq, name:f.name, chunkCount:null }); });
+          renderFiles(); await refreshBackendStats(); enableAsk();
+          setStatus((res.message || 'Added to database.').split('\n')[0]);
+        } catch (e){ console.error(e); setStatus(''); toast('Upload failed: ' + e.message); }
+        setTimeout(()=>setStatus(''), 3500);
+        return;
+      }
+
+      // ----- offline (in-browser) -----
+      setStatus(`Indexing ${files.length} file${files.length>1?'s':''}…`);
+      let added = 0;
+      for (const f of files){
+        try {
+          const text = await readFile(f);
+          const chunks = chunkText(text);
+          if (!chunks.length){ toast(`${f.name} had no readable text.`); continue; }
+          const id = ++fileSeq;
+          db.files.push({ id, name: f.name, chunkCount: chunks.length });
+          chunks.forEach((ct,ci) => db.chunks.push({ id:`${id}-${ci}`, fileId:id, fileName:f.name, text:ct }));
+          added++;
+        } catch (e){ console.error(e); toast(`Couldn’t read ${f.name}.`); }
+      }
+      if (added){ buildIndex(); renderFiles(); updateStats(); enableAsk(); }
+      setStatus(added ? `Added ${added} file${added>1?'s':''}. Ask away.` : '');
+      setTimeout(()=>setStatus(''), 2600);
+    }
+
+    async function refreshBackendStats(){
+      const v = await backendStats();
+      $('#statFiles').textContent = db.files.length;
+      $('#statChunks').textContent = (v == null) ? '—' : v;
+      $('#statHealth').textContent = 'CS RAG';
+      $('#meterBar').style.width = (v && v > 0) ? '100%' : '0%';
+      $('#clearBtn').disabled = db.files.length === 0;
+    }
+
+    const ANSWER_EMPTY = `<p class="ans-body ans-empty">Your answer will appear here, grounded in the files you upload — with citations to the exact source passages.</p>`;
+
+    function removeFile(id){
+      db.files = db.files.filter(f => f.id !== id);
+      if (BACKEND){ renderFiles(); refreshBackendStats(); toast('Removed from the list (server database unchanged).'); return; }
+      db.chunks = db.chunks.filter(c => c.fileId !== id);
+      buildIndex(); renderFiles(); updateStats();
+      if (!db.files.length){ disableAsk(); $('#answer').innerHTML = ANSWER_EMPTY; $('#passages').innerHTML=''; }
+    }
+
+    function clearDb(){
+      db.files = [];
+      if (BACKEND){
+        renderFiles(); refreshBackendStats();
+        $('#answer').innerHTML = ANSWER_EMPTY; $('#passages').innerHTML = '';
+        toast('Cleared the local view — the CS server database is left intact.');
+        return;
+      }
+      db.chunks = []; db.idf = new Map(); db.avgdl = 0;
+      renderFiles(); updateStats(); disableAsk();
+      $('#answer').innerHTML = ANSWER_EMPTY; $('#passages').innerHTML = '';
+      toast('Database cleared.');
+    }
+
+    function renderFiles(){
+      const wrap = $('#fileList');
+      if (!db.files.length){ wrap.innerHTML = `<p class="mono text-xs text-muted">No files yet.</p>`; return; }
+      wrap.innerHTML = db.files.map(f =>
+        `<div class="frow"><div class="flex-1 min-w-0"><div class="text-sm text-ink truncate">${esc(f.name)}</div><div class="mono text-[.62rem] text-muted">${f.chunkCount} passage${f.chunkCount>1?'s':''}</div></div><span class="frm-x" data-rm="${f.id}" title="Remove" aria-label="Remove ${esc(f.name)}">✕</span></div>`
+      ).join('');
+      wrap.querySelectorAll('[data-rm]').forEach(x => x.addEventListener('click', () => removeFile(+x.dataset.rm)));
+    }
+
+    function updateStats(){
+      $('#statFiles').textContent = db.files.length;
+      $('#statChunks').textContent = db.chunks.length;
+      const has = db.chunks.length > 0;
+      $('#statHealth').textContent = has ? 'ready' : 'empty';
+      $('#meterBar').style.width = has ? '100%' : '0%';
+      $('#clearBtn').disabled = !has;
+    }
+
+    function enableAsk(){ $('#ask').disabled=false; $('#askBtn').disabled=false; $('#ask').placeholder='Ask a question about your files…'; }
+    function disableAsk(){ $('#ask').disabled=true; $('#askBtn').disabled=true; $('#ask').value=''; $('#ask').placeholder='Upload a file first to ask a question…'; }
+
+    function setStatus(t){ $('#status').textContent = t; }
+
+    // wiring
+    const drop = $('#drop'), input = $('#fileInput');
+    drop.addEventListener('click', () => input.click());
+    drop.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); input.click(); } });
+    input.addEventListener('change', () => { handleFiles(input.files); input.value=''; });
+    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+    drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+    $('#askBtn').addEventListener('click', ask);
+    $('#ask').addEventListener('keydown', e => { if (e.key==='Enter') ask(); });
+    $('#clearBtn').addEventListener('click', clearDb);
+
+    // startup: connect to CS RAG if available, else stay in-browser
+    (async () => {
+      await detectBackend();
+      if (BACKEND){
+        const v = await backendStats();
+        $('#statChunks').textContent = (v == null) ? '—' : v;
+        $('#statHealth').textContent = 'CS RAG';
+        if (v && v > 0){ enableAsk(); $('#clearBtn').disabled = false; }  // existing DB is queryable right away
+        $('#ask').placeholder = 'Ask a question about your database…';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MOMO — Study hub</title>
+  <meta name="description" content="Cambridge 9618 syllabus tracker, spaced-repetition flashcards, past-paper timer and focus timer." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/tw.js"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+
+  <style>
+    .unit-head { display:flex; align-items:center; gap:.7rem; margin-bottom:.7rem; }
+    .unit-n { font-family:'Space Mono',monospace; font-size:.66rem; font-weight:700; color:#D4AF37;
+      border:1px solid rgba(212,175,55,.4); border-radius:7px; padding:.15rem .4rem; }
+    .unit-name { font-family:'Cinzel',serif; font-weight:700; font-size:.92rem; color:#F2E9D8; flex:1; min-width:0; }
+    .unit-pct { font-family:'Space Mono',monospace; font-size:.66rem; color:#CFC3A6; }
+    .sub-row { display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.42rem 0; border-top:1px solid #0E2236; }
+    .sub-row p { font-size:.82rem; color:#E6DBC3; line-height:1.4; }
+    .deck-row { display:flex; align-items:center; gap:.8rem; padding:.65rem 0; border-top:1px solid #0E2236; }
+    .deck-row:first-child { border-top:none; }
+  </style>
+</head>
+
+<body class="font-body" data-page="study">
+  <div class="bg-fx"></div>
+  <div class="grain"></div>
+
+  <header class="site-head">
+    <div class="container-x h-16 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center gap-3 shrink-0" aria-label="MOMO home">
+        <img src="brand/logo.png" alt="MOMO" class="h-10 w-auto object-contain" />
+        <span class="display font-bold text-[17px] tracking-[.22em] text-ink hidden md:inline">MOMO</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Home</a>
+        <a href="oracle.html" data-nav="oracle">Oracle</a>
+        <a href="study.html" data-nav="study">Study</a>
+        <a href="calendar.html" data-nav="calendar">Calendar</a>
+        <a href="pipelines.html" data-nav="pipelines">Pipelines</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container-x pb-16">
+
+    <div class="page-head">
+      <div class="eyebrow">Cambridge International A Level · Computer Science 9618</div>
+      <h1>Study hub</h1>
+      <p>Track every syllabus point, drill the key terms, sit papers against the clock, and protect your focus. Everything saves in this browser.</p>
+    </div>
+
+    <div class="seg mb-7" role="tablist" aria-label="Study tools">
+      <button data-tab="syllabus" role="tab">Syllabus</button>
+      <button data-tab="flashcards" role="tab">Flashcards</button>
+      <button data-tab="papers" role="tab">Past papers</button>
+      <button data-tab="focus" role="tab">Focus</button>
+    </div>
+
+    <!-- ================= SYLLABUS ================= -->
+    <section id="tab-syllabus" hidden>
+      <div class="card p-6 mb-6" data-mascot="wink tr">
+        <div class="flex flex-wrap items-center gap-x-10 gap-y-4">
+          <div><div id="sylOverall" class="display text-4xl text-gold-l leading-none">0%</div>
+            <div class="mono text-[.66rem] text-muted mt-2">whole syllabus at "strong"</div></div>
+          <div class="flex-1 min-w-[220px] space-y-3">
+            <div>
+              <div class="flex justify-between mb-1"><span class="mono text-[.66rem] text-muted">AS · units 1–12</span><span id="sylAsPct" class="mono text-[.66rem] text-gold-l">0%</span></div>
+              <div class="meter"><span id="sylAsBar" style="width:0%"></span></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1"><span class="mono text-[.66rem] text-muted">A2 · units 13–20</span><span id="sylA2Pct" class="mono text-[.66rem] text-gold-l">0%</span></div>
+              <div class="meter"><span id="sylA2Bar" style="width:0%"></span></div>
+            </div>
+          </div>
+          <div class="mono text-[.62rem] text-muted leading-relaxed">
+            Rate each point:<br>
+            <span style="color:#E9A29E;">W</span> weak · <span style="color:#9FD3E8;">O</span> ok · <span style="color:#ECD27E;">S</span> strong
+          </div>
+        </div>
+      </div>
+      <h2 class="section mb-4">AS Level</h2>
+      <div id="sylAs" class="grid gap-5 md:grid-cols-2 mb-8"></div>
+      <h2 class="section mb-4">A2 Level</h2>
+      <div id="sylA2" class="grid gap-5 md:grid-cols-2"></div>
+    </section>
+
+    <!-- ================= FLASHCARDS ================= -->
+    <section id="tab-flashcards" hidden>
+      <div class="grid gap-6" style="grid-template-columns:320px 1fr;" id="fcGrid">
+        <aside class="space-y-4 min-w-0">
+          <div class="card p-5">
+            <div class="eyebrow mb-3">Decks</div>
+            <div id="deckList"></div>
+            <div class="flex gap-2 mt-4">
+              <input id="newDeckName" class="field" placeholder="New deck name" />
+              <button id="newDeckBtn" class="btn btn-ghost text-sm shrink-0">Add</button>
+            </div>
+          </div>
+        </aside>
+        <div class="min-w-0">
+          <!-- review -->
+          <div id="fcReview" class="card p-6" hidden>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="section" id="fcDeckTitle">Review</h2>
+              <span class="mono text-[.66rem] text-muted" id="fcLeft"></span>
+            </div>
+            <div class="fc-stage mb-5">
+              <div class="fc-card" id="fcCard">
+                <div class="fc-face"><span class="fc-tag">Question</span><p class="fc-text" id="fcFront"></p></div>
+                <div class="fc-face back"><span class="fc-tag">Answer</span><p class="fc-text" id="fcBack"></p></div>
+              </div>
+            </div>
+            <div class="flex justify-center" id="fcShowWrap"><button id="fcShow" class="btn btn-gold text-sm">Show answer</button></div>
+            <div class="hidden justify-center gap-2 flex-wrap" id="fcGrades">
+              <button class="btn btn-danger text-sm" data-grade="0">Again · 1 min</button>
+              <button class="btn btn-ghost text-sm" data-grade="1">Hard</button>
+              <button class="btn btn-ghost text-sm" data-grade="2">Good</button>
+              <button class="btn btn-gold text-sm" data-grade="3">Easy</button>
+            </div>
+          </div>
+          <!-- done / empty -->
+          <div id="fcDone" class="card p-8 text-center" data-mascot="cheer tl">
+            <div class="display text-xl text-ink mb-2">Pick a deck to review</div>
+            <p class="text-sm text-muted">Cards come back on a spaced schedule — the harder a card feels, the sooner you see it again.</p>
+          </div>
+          <!-- browse -->
+          <div id="fcBrowse" class="card p-6 mt-6" hidden>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="section" id="fcBrowseTitle">Cards</h2>
+              <button id="fcCloseBrowse" class="btn btn-ghost text-xs">Close</button>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2 mb-3">
+              <textarea id="fcNewFront" rows="2" class="field resize-y" placeholder="Front — the question or term"></textarea>
+              <textarea id="fcNewBack" rows="2" class="field resize-y" placeholder="Back — the answer or definition"></textarea>
+            </div>
+            <button id="fcAddCard" class="btn btn-gold text-sm mb-5">Add card</button>
+            <div style="max-height:420px; overflow-y:auto;"><table class="dtable" id="fcTable"></table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAST PAPERS ================= -->
+    <section id="tab-papers" hidden>
+      <div class="grid gap-6 md:grid-cols-2">
+        <!-- setup / timer -->
+        <div class="card p-6">
+          <div id="ppSetup">
+            <h2 class="section mb-2">Sit a paper</h2>
+            <p class="text-sm text-muted mb-5">Pick the paper, start the clock, and work like it's the real thing. You'll get a warning at 15 and 5 minutes left.</p>
+            <div class="grid grid-cols-2 gap-3 mb-4" id="ppPresets">
+              <button class="card-2 p-4 text-left" data-paper="Paper 1" data-min="90"><div class="eyebrow mb-1">Paper 1</div><div class="text-sm text-ink">Theory Fundamentals</div><div class="mono text-[.64rem] text-muted mt-1">1h 30m · 75 marks</div></button>
+              <button class="card-2 p-4 text-left" data-paper="Paper 2" data-min="120"><div class="eyebrow mb-1">Paper 2</div><div class="text-sm text-ink">Problem-solving &amp; Programming</div><div class="mono text-[.64rem] text-muted mt-1">2h · 75 marks</div></button>
+              <button class="card-2 p-4 text-left" data-paper="Paper 3" data-min="90"><div class="eyebrow mb-1">Paper 3</div><div class="text-sm text-ink">Advanced Theory</div><div class="mono text-[.64rem] text-muted mt-1">1h 30m · 75 marks</div></button>
+              <button class="card-2 p-4 text-left" data-paper="Paper 4" data-min="150"><div class="eyebrow mb-1">Paper 4</div><div class="text-sm text-ink">Practical</div><div class="mono text-[.64rem] text-muted mt-1">2h 30m · 75 marks</div></button>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="flabel mb-0 shrink-0" for="ppCustom">or custom:</label>
+              <input id="ppCustom" type="number" min="5" max="300" class="field" style="max-width:110px;" placeholder="minutes" />
+              <button id="ppCustomStart" class="btn btn-ghost text-sm">Start custom</button>
+            </div>
+          </div>
+
+          <div id="ppTimer" hidden>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="section" id="ppLabel">Paper 1</h2>
+              <span class="mono text-[.66rem] text-muted" id="ppSession"></span>
+            </div>
+            <div class="ring-wrap mb-5">
+              <svg viewBox="0 0 230 230">
+                <defs><linearGradient id="gradPP" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ECD27E"/><stop offset="100%" stop-color="#9C7C28"/></linearGradient></defs>
+                <circle class="ring-track" cx="115" cy="115" r="104"/>
+                <circle class="ring-fill" id="ppRing" cx="115" cy="115" r="104" stroke="url(#gradPP)"/>
+              </svg>
+              <div class="ring-center">
+                <div class="ring-time" id="ppTime">00:00</div>
+                <div class="ring-sub" id="ppState">running</div>
+              </div>
+            </div>
+            <div class="flex justify-center gap-2 flex-wrap">
+              <button id="ppPause" class="btn btn-ghost text-sm">Pause</button>
+              <button id="ppFinish" class="btn btn-gold text-sm">Finish now</button>
+              <button id="ppAbandon" class="btn btn-danger text-sm">Abandon</button>
+            </div>
+          </div>
+
+          <div id="ppLog" hidden>
+            <h2 class="section mb-2">Log the paper</h2>
+            <p class="text-sm text-muted mb-4" id="ppLogMeta"></p>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div><label class="flabel" for="ppScore">Score</label><input id="ppScore" type="number" min="0" class="field" placeholder="e.g. 58" /></div>
+              <div><label class="flabel" for="ppOutOf">Out of</label><input id="ppOutOf" type="number" min="1" value="75" class="field" /></div>
+            </div>
+            <label class="flabel" for="ppWhich">Which paper was it?</label>
+            <input id="ppWhich" class="field mb-3" placeholder="e.g. May/June 2024 · 9618/12" />
+            <label class="flabel" for="ppNotes">Notes — what to revisit</label>
+            <textarea id="ppNotes" rows="2" class="field resize-y mb-4" placeholder="(optional)"></textarea>
+            <div class="flex gap-2">
+              <button id="ppSave" class="btn btn-gold text-sm">Save to log</button>
+              <button id="ppDiscard" class="btn btn-ghost text-sm">Discard</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- history -->
+        <div class="card p-6" data-mascot="peek tr">
+          <div class="flex items-center justify-between mb-1">
+            <h2 class="section">Paper log</h2>
+            <span class="mono text-[.66rem] text-muted" id="ppAvg"></span>
+          </div>
+          <p class="text-sm text-muted mb-4">Every timed paper you've sat, newest first.</p>
+          <div id="ppHistory"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FOCUS ================= -->
+    <section id="tab-focus" hidden>
+      <div class="grid gap-6 md:grid-cols-2">
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="section">Focus timer</h2>
+            <span class="mono text-[.66rem] text-muted" id="poRound">session 1 of 4</span>
+          </div>
+          <div class="ring-wrap mb-5">
+            <svg viewBox="0 0 230 230">
+              <defs><linearGradient id="gradPO" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ECD27E"/><stop offset="100%" stop-color="#9C7C28"/></linearGradient></defs>
+              <circle class="ring-track" cx="115" cy="115" r="104"/>
+              <circle class="ring-fill" id="poRing" cx="115" cy="115" r="104" stroke="url(#gradPO)"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-time" id="poTime">25:00</div>
+              <div class="ring-sub" id="poState">focus</div>
+            </div>
+          </div>
+          <div class="flex justify-center gap-2 flex-wrap">
+            <button id="poStart" class="btn btn-gold text-sm">Start focus</button>
+            <button id="poPause" class="btn btn-ghost text-sm" hidden>Pause</button>
+            <button id="poSkip" class="btn btn-ghost text-sm" hidden>Skip break</button>
+            <button id="poReset" class="btn btn-danger text-sm" hidden>Reset</button>
+          </div>
+          <p class="mono text-[.64rem] text-muted text-center mt-5">25 min focus · 5 min break · 15 min after every 4th</p>
+        </div>
+
+        <div class="card p-6" data-mascot="cheer tr">
+          <h2 class="section mb-4">Your record</h2>
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="card-2 p-4 text-center"><div id="poToday" class="display text-3xl text-gold-l leading-none">0</div><div class="mono text-[.62rem] text-muted mt-2">today</div></div>
+            <div class="card-2 p-4 text-center"><div id="poStreak" class="display text-3xl text-ink leading-none">0</div><div class="mono text-[.62rem] text-muted mt-2">day streak</div></div>
+            <div class="card-2 p-4 text-center"><div id="poTotal" class="display text-3xl text-ink leading-none">0</div><div class="mono text-[.62rem] text-muted mt-2">all time</div></div>
+          </div>
+          <p class="text-sm text-muted">A day counts toward the streak when you finish at least one 25-minute focus session. Gumball celebrates every one.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line" style="background:#07101B;">
+    <div class="container-x py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <a href="index.html" class="flex items-center gap-3"><img src="brand/logo.png" alt="MOMO" class="h-9 w-auto object-contain" /></a>
+      <div class="mono text-xs text-muted">© 2026 MOMO · Answers, with their receipts.</div>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+  <script src="assets/syllabus9618.js"></script>
+  <script src="assets/site.js"></script>
+
+  <script>
+  (function(){
+    'use strict';
+    const $ = s => document.querySelector(s);
+    const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) || fb; } catch(_){ return fb; } };
+    const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+    // ---------------- tabs (hash-routed) ----------------
+    const TABS = ['syllabus','flashcards','papers','focus'];
+    function showTab(name){
+      if (!TABS.includes(name)) name = 'syllabus';
+      TABS.forEach(t => { document.getElementById('tab-'+t).hidden = t !== name; });
+      document.querySelectorAll('.seg [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+      if (history.state !== name) history.replaceState(name, '', '#'+name);
+    }
+    document.querySelectorAll('.seg [data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+    window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+    showTab(location.hash.slice(1));
+
+    // ================= SYLLABUS =================
+    const SYL_KEY = 'momo.study.syllabus.v1';
+    const ALL_UNITS = [...SYLLABUS_9618.as.map(u => ({...u, lvl:'as'})), ...SYLLABUS_9618.a2.map(u => ({...u, lvl:'a2'}))];
+    const TOTAL_SUBS = ALL_UNITS.reduce((n,u) => n + u.subs.length, 0);
+    let syl = load(SYL_KEY, { marks:{}, total: TOTAL_SUBS });
+    syl.total = TOTAL_SUBS;
+
+    function sylPct(units){
+      let got = 0, max = 0;
+      units.forEach(u => u.subs.forEach((_,i) => { max += 3; got += syl.marks['u'+u.n+'.'+i] || 0; }));
+      return max ? Math.round(got/max*100) : 0;
+    }
+    function renderSylTotals(){
+      const asP = sylPct(ALL_UNITS.filter(u=>u.lvl==='as')), a2P = sylPct(ALL_UNITS.filter(u=>u.lvl==='a2'));
+      $('#sylOverall').textContent = sylPct(ALL_UNITS)+'%';
+      $('#sylAsPct').textContent = asP+'%'; $('#sylAsBar').style.width = asP+'%';
+      $('#sylA2Pct').textContent = a2P+'%'; $('#sylA2Bar').style.width = a2P+'%';
+    }
+    function unitPctLabel(u){
+      let got=0, max=u.subs.length*3;
+      u.subs.forEach((_,i)=>{ got += syl.marks['u'+u.n+'.'+i] || 0; });
+      return Math.round(got/max*100)+'%';
+    }
+    function renderSyllabus(){
+      ['as','a2'].forEach(lvl => {
+        const host = lvl==='as' ? $('#sylAs') : $('#sylA2');
+        host.innerHTML = SYLLABUS_9618[lvl].map(u => `
+          <div class="card-2 p-5" data-unit="${u.n}">
+            <div class="unit-head">
+              <span class="unit-n">${String(u.n).padStart(2,'0')}</span>
+              <span class="unit-name">${esc(u.name)}</span>
+              <span class="unit-pct" data-upct="${u.n}">${unitPctLabel(u)}</span>
+            </div>
+            ${u.subs.map((s,i) => {
+              const key = 'u'+u.n+'.'+i, v = syl.marks[key] || 0;
+              return `<div class="sub-row"><p>${esc(s)}</p>
+                <span class="pips" data-key="${key}">
+                  <button class="${v===1?'on-1':''}" data-v="1" title="Weak" aria-label="${esc(s)} — weak">W</button>
+                  <button class="${v===2?'on-2':''}" data-v="2" title="OK" aria-label="${esc(s)} — ok">O</button>
+                  <button class="${v===3?'on-3':''}" data-v="3" title="Strong" aria-label="${esc(s)} — strong">S</button>
+                </span></div>`;
+            }).join('')}
+          </div>`).join('');
+      });
+      renderSylTotals();
+    }
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.pips button'); if (!btn) return;
+      const wrap = btn.parentElement, key = wrap.dataset.key, v = +btn.dataset.v;
+      syl.marks[key] = (syl.marks[key] === v) ? 0 : v;
+      if (!syl.marks[key]) delete syl.marks[key];
+      save(SYL_KEY, syl);
+      wrap.querySelectorAll('button').forEach(b => b.className = (syl.marks[key] === +b.dataset.v) ? 'on-'+b.dataset.v : '');
+      const unitEl = btn.closest('[data-unit]');
+      const u = ALL_UNITS.find(x => x.n === +unitEl.dataset.unit);
+      unitEl.querySelector('[data-upct]').textContent = unitPctLabel(u);
+      renderSylTotals();
+    });
+    renderSyllabus();
+
+    // ================= FLASHCARDS =================
+    const FC_KEY = 'momo.study.decks.v1';
+    let fc = load(FC_KEY, null);
+    if (!fc){
+      fc = { seeded:true, decks:[{ id:1, name:'9618 key terms', cards: STARTER_DECK_9618.map((c,i) => ({ id:i+1, f:c[0], b:c[1], ivl:0, due:0, reps:0 })) }] };
+      save(FC_KEY, fc);
+    }
+    let curDeck = null, queue = [], curCard = null;
+    const nextCardId = d => d.cards.reduce((m,c)=>Math.max(m,c.id),0)+1;
+    const dueCount = d => { const now = Date.now(); return d.cards.filter(c => (c.due||0) <= now).length; };
+
+    function renderDecks(){
+      const host = $('#deckList');
+      if (!fc.decks.length){ host.innerHTML = '<p class="mono text-xs text-muted">No decks yet — add one below.</p>'; return; }
+      host.innerHTML = fc.decks.map(d => `
+        <div class="deck-row" style="flex-direction:column; align-items:stretch; gap:.55rem;">
+          <div class="flex items-baseline justify-between gap-2 min-w-0">
+            <div class="text-sm text-ink truncate">${esc(d.name)}</div>
+            <div class="mono text-[.62rem] text-muted shrink-0">${dueCount(d)} due · ${d.cards.length} cards</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="btn btn-gold text-xs" data-review="${d.id}">Review</button>
+            <button class="btn btn-ghost text-xs" data-browse="${d.id}">Cards</button>
+            <button class="btn btn-danger text-xs ml-auto" data-deldeck="${d.id}" title="Delete deck">✕</button>
+          </div>
+        </div>`).join('');
+    }
+    $('#deckList').addEventListener('click', e => {
+      const r = e.target.closest('[data-review]'); if (r) return startReview(+r.dataset.review);
+      const b = e.target.closest('[data-browse]'); if (b) return openBrowse(+b.dataset.browse);
+      const x = e.target.closest('[data-deldeck]');
+      if (x){
+        const d = fc.decks.find(d => d.id === +x.dataset.deldeck);
+        if (d && confirm('Delete deck "'+d.name+'" and its '+d.cards.length+' cards?')){
+          fc.decks = fc.decks.filter(k => k !== d); save(FC_KEY, fc); renderDecks();
+          if (curDeck === d){ curDeck = null; $('#fcReview').hidden = true; $('#fcBrowse').hidden = true; $('#fcDone').hidden = false; }
+        }
+      }
+    });
+    $('#newDeckBtn').addEventListener('click', () => {
+      const name = $('#newDeckName').value.trim(); if (!name) return;
+      fc.decks.push({ id: fc.decks.reduce((m,d)=>Math.max(m,d.id),0)+1, name, cards:[] });
+      $('#newDeckName').value = ''; save(FC_KEY, fc); renderDecks(); toast('Deck added.');
+    });
+
+    function startReview(id){
+      curDeck = fc.decks.find(d => d.id === id); if (!curDeck) return;
+      const now = Date.now();
+      queue = curDeck.cards.filter(c => (c.due||0) <= now).sort((a,b) => (a.due||0)-(b.due||0));
+      $('#fcBrowse').hidden = true;
+      if (!queue.length){ doneMsg('Nothing due in “'+curDeck.name+'”', 'All caught up — come back later, or browse the deck to add cards.'); return; }
+      $('#fcDone').hidden = true; $('#fcReview').hidden = false;
+      $('#fcDeckTitle').textContent = curDeck.name;
+      nextCard();
+    }
+    function doneMsg(title, sub){
+      $('#fcReview').hidden = true; $('#fcDone').hidden = false;
+      $('#fcDone').querySelector('.display').textContent = title;
+      $('#fcDone').querySelector('p').textContent = sub;
+    }
+    function nextCard(){
+      if (!queue.length){ doneMsg('Deck done — nice work!', 'Everything due in this deck is reviewed. Gumball approves.'); window.gumballCheer(); renderDecks(); return; }
+      curCard = queue.shift();
+      $('#fcCard').classList.remove('flip');
+      $('#fcFront').textContent = curCard.f; $('#fcBack').textContent = curCard.b;
+      $('#fcLeft').textContent = (queue.length+1) + ' to go';
+      $('#fcShowWrap').style.display = 'flex'; $('#fcGrades').classList.add('hidden'); $('#fcGrades').classList.remove('flex');
+    }
+    $('#fcShow').addEventListener('click', () => {
+      $('#fcCard').classList.add('flip');
+      $('#fcShowWrap').style.display = 'none';
+      $('#fcGrades').classList.remove('hidden'); $('#fcGrades').classList.add('flex');
+    });
+    $('#fcGrades').addEventListener('click', e => {
+      const b = e.target.closest('[data-grade]'); if (!b || !curCard) return;
+      const g = +b.dataset.grade, DAY = 86400000, now = Date.now();
+      if (g === 0){ curCard.ivl = 0; curCard.due = now + 60000; queue.push(curCard); }        // again → back into this session
+      else if (g === 1){ curCard.ivl = Math.max(1, (curCard.ivl||0) * 1.2); curCard.due = now + curCard.ivl*DAY; }
+      else if (g === 2){ curCard.ivl = (curCard.ivl||0) < 1 ? 1 : curCard.ivl * 2.5; curCard.due = now + curCard.ivl*DAY; }
+      else { curCard.ivl = (curCard.ivl||0) < 1 ? 3 : curCard.ivl * 4; curCard.due = now + curCard.ivl*DAY; }
+      curCard.reps = (curCard.reps||0) + 1;
+      save(FC_KEY, fc);
+      nextCard();
+    });
+
+    let browseDeck = null;
+    function openBrowse(id){
+      browseDeck = fc.decks.find(d => d.id === id); if (!browseDeck) return;
+      $('#fcBrowse').hidden = false;
+      $('#fcBrowseTitle').textContent = 'Cards · ' + browseDeck.name;
+      renderBrowse();
+      $('#fcBrowse').scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+    function renderBrowse(){
+      const t = $('#fcTable');
+      if (!browseDeck.cards.length){ t.innerHTML = '<tr><td class="mono text-xs text-muted">No cards yet — add the first one above.</td></tr>'; return; }
+      t.innerHTML = '<tr><th>Front</th><th>Back</th><th></th></tr>' + browseDeck.cards.map(c =>
+        `<tr><td style="max-width:260px;">${esc(c.f)}</td><td style="max-width:320px;">${esc(c.b)}</td>
+         <td><button class="frm-x" data-delcard="${c.id}" title="Delete card" style="background:none;border:none;color:#A2957C;cursor:pointer;">✕</button></td></tr>`).join('');
+    }
+    $('#fcTable').addEventListener('click', e => {
+      const b = e.target.closest('[data-delcard]'); if (!b) return;
+      browseDeck.cards = browseDeck.cards.filter(c => c.id !== +b.dataset.delcard);
+      save(FC_KEY, fc); renderBrowse(); renderDecks();
+    });
+    $('#fcAddCard').addEventListener('click', () => {
+      const f = $('#fcNewFront').value.trim(), b = $('#fcNewBack').value.trim();
+      if (!f || !b){ toast('A card needs both a front and a back.'); return; }
+      browseDeck.cards.push({ id: nextCardId(browseDeck), f, b, ivl:0, due:0, reps:0 });
+      $('#fcNewFront').value = ''; $('#fcNewBack').value = '';
+      save(FC_KEY, fc); renderBrowse(); renderDecks(); toast('Card added.');
+    });
+    $('#fcCloseBrowse').addEventListener('click', () => { $('#fcBrowse').hidden = true; });
+    renderDecks();
+
+    // ================= shared countdown ring =================
+    const CIRC = 2 * Math.PI * 104;
+    function makeTimer(ringEl, timeEl, onTick, onDone){
+      const st = { total:0, endAt:0, left:0, running:false, iv:null };
+      function draw(){
+        const m = Math.floor(st.left/60000), s = Math.floor(st.left%60000/1000);
+        timeEl.textContent = (st.total >= 3600000 ? String(Math.floor(st.left/3600000))+':'+String(m%60).padStart(2,'0') : String(m).padStart(2,'0')) + ':' + String(s).padStart(2,'0');
+        ringEl.style.strokeDasharray = CIRC;
+        ringEl.style.strokeDashoffset = CIRC * (1 - (st.total ? st.left/st.total : 0));
+        if (onTick) onTick(st);
+      }
+      function tick(){
+        st.left = Math.max(0, st.endAt - Date.now());
+        draw();
+        if (st.left <= 0){ stop(); onDone && onDone(); }
+      }
+      function start(ms){ st.total = ms; st.left = ms; st.endAt = Date.now()+ms; st.running = true; clearInterval(st.iv); st.iv = setInterval(tick, 500); draw(); }
+      function pause(){ if (!st.running) return; st.running = false; clearInterval(st.iv); st.left = Math.max(0, st.endAt - Date.now()); draw(); }
+      function resume(){ if (st.running || !st.left) return; st.endAt = Date.now()+st.left; st.running = true; st.iv = setInterval(tick, 500); }
+      function stop(){ st.running = false; clearInterval(st.iv); }
+      function show(ms, total){ st.total = total||ms; st.left = ms; draw(); }
+      return { st, start, pause, resume, stop, show };
+    }
+
+    // ================= PAST PAPERS =================
+    const PP_KEY = 'momo.study.papers.v1';
+    let pp = load(PP_KEY, { log:[] });
+    let ppRun = null;   // { paper, minutes, startedAt, warned15, warned5 }
+
+    const ppTimer = makeTimer($('#ppRing'), $('#ppTime'), st => {
+      if (!ppRun || !st.running) return;
+      if (!ppRun.warned15 && st.left <= 15*60000 && st.total > 20*60000){ ppRun.warned15 = true; toast('15 minutes left.'); }
+      if (!ppRun.warned5 && st.left <= 5*60000){ ppRun.warned5 = true; toast('5 minutes left — wrap up!'); }
+    }, () => finishPaper(true));
+
+    function ppShow(which){ ['ppSetup','ppTimer','ppLog'].forEach(id => { document.getElementById(id).hidden = id !== which; }); }
+
+    function startPaper(paper, minutes){
+      ppRun = { paper, minutes, startedAt: Date.now(), warned15:false, warned5:false };
+      $('#ppLabel').textContent = paper;
+      $('#ppSession').textContent = minutes + ' min';
+      $('#ppState').textContent = 'running'; $('#ppPause').textContent = 'Pause';
+      ppShow('ppTimer');
+      ppTimer.start(minutes*60000);
+    }
+    document.querySelectorAll('#ppPresets [data-paper]').forEach(b =>
+      b.addEventListener('click', () => startPaper(b.dataset.paper, +b.dataset.min)));
+    $('#ppCustomStart').addEventListener('click', () => {
+      const m = +$('#ppCustom').value;
+      if (!m || m < 5){ toast('Give it at least 5 minutes.'); return; }
+      startPaper('Custom paper', m);
+    });
+    $('#ppPause').addEventListener('click', () => {
+      if (ppTimer.st.running){ ppTimer.pause(); $('#ppState').textContent = 'paused'; $('#ppPause').textContent = 'Resume'; }
+      else { ppTimer.resume(); $('#ppState').textContent = 'running'; $('#ppPause').textContent = 'Pause'; }
+    });
+    $('#ppFinish').addEventListener('click', () => finishPaper(false));
+    $('#ppAbandon').addEventListener('click', () => {
+      if (!confirm('Abandon this paper? Nothing will be logged.')) return;
+      ppTimer.stop(); ppRun = null; ppShow('ppSetup');
+    });
+    function finishPaper(timeUp){
+      ppTimer.stop();
+      const usedMin = Math.max(1, Math.round((Date.now() - ppRun.startedAt)/60000));
+      ppRun.usedMin = Math.min(usedMin, ppRun.minutes);
+      $('#ppLogMeta').textContent = ppRun.paper + ' · ' + (timeUp ? "time's up" : 'finished early') + ' · ' + ppRun.usedMin + ' of ' + ppRun.minutes + ' min used';
+      if (timeUp) toast("Time's up — pens down!");
+      window.gumballCheer();
+      ppShow('ppLog');
+    }
+    $('#ppSave').addEventListener('click', () => {
+      const score = $('#ppScore').value === '' ? null : +$('#ppScore').value;
+      const outOf = +$('#ppOutOf').value || 75;
+      pp.log.unshift({ date: new Date().toISOString().slice(0,10), paper: ppRun.paper, which: $('#ppWhich').value.trim(),
+        usedMin: ppRun.usedMin, minutes: ppRun.minutes, score, outOf, notes: $('#ppNotes').value.trim() });
+      save(PP_KEY, pp);
+      $('#ppScore').value=''; $('#ppWhich').value=''; $('#ppNotes').value='';
+      ppRun = null; ppShow('ppSetup'); renderPPLog(); toast('Paper logged.');
+    });
+    $('#ppDiscard').addEventListener('click', () => { ppRun = null; ppShow('ppSetup'); });
+
+    function renderPPLog(){
+      const host = $('#ppHistory');
+      if (!pp.log.length){
+        host.innerHTML = '<p class="mono text-xs text-muted">No papers yet — sit your first one on the left.</p>';
+        $('#ppAvg').textContent = ''; return;
+      }
+      const scored = pp.log.filter(e => e.score != null);
+      $('#ppAvg').textContent = scored.length
+        ? 'avg ' + Math.round(scored.reduce((a,e) => a + e.score/e.outOf*100, 0)/scored.length) + '%'
+        : '';
+      host.innerHTML = '<table class="dtable"><tr><th>Date</th><th>Paper</th><th>Time</th><th>Score</th><th></th></tr>' +
+        pp.log.map((e,i) => {
+          const pct = e.score != null ? Math.round(e.score/e.outOf*100) : null;
+          return `<tr title="${esc(e.notes||'')}"><td class="mono text-[.72rem]">${e.date}</td>
+            <td>${esc(e.paper)}${e.which ? '<br><span class="mono text-[.62rem]" style="color:#8F836C;">'+esc(e.which)+'</span>' : ''}</td>
+            <td class="mono text-[.72rem]">${e.usedMin}m</td>
+            <td>${pct != null ? `<span class="mono text-[.72rem]" style="color:${pct>=70?'#ECD27E':pct>=50?'#9FD3E8':'#E9A29E'};">${e.score}/${e.outOf} · ${pct}%</span>` : '<span class="mono text-[.72rem]" style="color:#8F836C;">—</span>'}</td>
+            <td><button data-delpp="${i}" title="Delete entry" style="background:none;border:none;color:#A2957C;cursor:pointer;">✕</button></td></tr>`;
+        }).join('') + '</table>';
+    }
+    $('#ppHistory').addEventListener('click', e => {
+      const b = e.target.closest('[data-delpp]'); if (!b) return;
+      pp.log.splice(+b.dataset.delpp, 1); save(PP_KEY, pp); renderPPLog();
+    });
+    renderPPLog();
+
+    // ================= FOCUS (pomodoro) =================
+    const PO_KEY = 'momo.study.pomo.v1';
+    const FOCUS_MS = 25*60000, SHORT_MS = 5*60000, LONG_MS = 15*60000;
+    let po = load(PO_KEY, { dates:{}, total:0, streak:0 });
+    let poMode = 'focus';      // focus | break
+    let poDoneInCycle = 0;     // completed focus sessions in the current 4-cycle
+
+    const dayKey = d => d.toISOString().slice(0,10);
+    function computeStreak(){
+      let n = 0; const d = new Date();
+      if (!po.dates[dayKey(d)]) d.setDate(d.getDate()-1);      // today can still be earned
+      while (po.dates[dayKey(d)]){ n++; d.setDate(d.getDate()-1); }
+      return n;
+    }
+    function renderPoStats(){
+      po.streak = computeStreak();
+      $('#poToday').textContent = po.dates[dayKey(new Date())] || 0;
+      $('#poStreak').textContent = po.streak;
+      $('#poTotal').textContent = po.total || 0;
+      $('#poRound').textContent = poMode === 'focus'
+        ? 'session ' + (poDoneInCycle+1) + ' of 4'
+        : (poDoneInCycle === 0 ? 'long break' : 'short break');
+    }
+
+    const poTimer = makeTimer($('#poRing'), $('#poTime'), null, () => {
+      if (poMode === 'focus'){
+        const k = dayKey(new Date());
+        po.dates[k] = (po.dates[k]||0) + 1; po.total = (po.total||0) + 1;
+        poDoneInCycle = (poDoneInCycle + 1) % 4;
+        save(PO_KEY, po);
+        window.gumballCheer(); toast('Focus session done — take a break!');
+        poMode = 'break';
+        const ms = poDoneInCycle === 0 ? LONG_MS : SHORT_MS;
+        $('#poState').textContent = 'break';
+        poTimer.start(ms);
+        $('#poSkip').hidden = false;
+      } else {
+        poMode = 'focus';
+        toast('Break over — ready for the next round?');
+        $('#poState').textContent = 'focus';
+        poTimer.show(FOCUS_MS, FOCUS_MS);
+        $('#poStart').hidden = false; $('#poStart').textContent = 'Start focus';
+        $('#poPause').hidden = true; $('#poSkip').hidden = true;
+      }
+      renderPoStats();
+    });
+
+    poTimer.show(FOCUS_MS, FOCUS_MS);
+    $('#poStart').addEventListener('click', () => {
+      poTimer.start(poMode === 'focus' ? FOCUS_MS : (poDoneInCycle === 0 ? LONG_MS : SHORT_MS));
+      $('#poState').textContent = poMode;
+      $('#poStart').hidden = true; $('#poPause').hidden = false; $('#poPause').textContent = 'Pause';
+      $('#poReset').hidden = false; $('#poSkip').hidden = poMode !== 'break';
+    });
+    $('#poPause').addEventListener('click', () => {
+      if (poTimer.st.running){ poTimer.pause(); $('#poPause').textContent = 'Resume'; $('#poState').textContent = 'paused'; }
+      else { poTimer.resume(); $('#poPause').textContent = 'Pause'; $('#poState').textContent = poMode; }
+    });
+    $('#poSkip').addEventListener('click', () => {
+      poTimer.stop(); poMode = 'focus';
+      poTimer.show(FOCUS_MS, FOCUS_MS);
+      $('#poState').textContent = 'focus';
+      $('#poStart').hidden = false; $('#poStart').textContent = 'Start focus';
+      $('#poPause').hidden = true; $('#poSkip').hidden = true;
+      renderPoStats();
+    });
+    $('#poReset').addEventListener('click', () => {
+      poTimer.stop(); poMode = 'focus'; poDoneInCycle = 0;
+      poTimer.show(FOCUS_MS, FOCUS_MS);
+      $('#poState').textContent = 'focus';
+      $('#poStart').hidden = false; $('#poStart').textContent = 'Start focus';
+      $('#poPause').hidden = true; $('#poSkip').hidden = true; $('#poReset').hidden = true;
+      renderPoStats();
+    });
+    renderPoStats();
+
+    // stacked flashcard grid on small screens
+    const mq = window.matchMedia('(max-width: 900px)');
+    function fcLayout(){ $('#fcGrid').style.gridTemplateColumns = mq.matches ? '1fr' : '320px 1fr'; }
+    mq.addEventListener('change', fcLayout); fcLayout();
+  })();
+  </script>
+</body>
+</html>

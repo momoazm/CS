@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MOMO — My Calendar</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/tw.js"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+
+  <style>
+    .cal-nav { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:999px;
+      background:#07101B; border:1px solid rgba(212,175,55,.4); color:#ECD27E; cursor:pointer; font-size:1rem; line-height:1;
+      transition:transform .15s ease, background-color .15s ease, border-color .15s ease; }
+    .cal-nav:hover { background:rgba(212,175,55,.12); border-color:#D4AF37; transform:scale(1.08); }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+    .cal-wd { text-align:center; font-family:'Space Mono',monospace; font-size:.6rem; font-weight:700; letter-spacing:.12em;
+      text-transform:uppercase; color:#D4AF37; padding:.2rem 0 .4rem; }
+    .cal-cell { position:relative; min-height:66px; border-radius:11px; background:#07101B; border:1px solid #14283C;
+      padding:.35rem .4rem; cursor:pointer; overflow:hidden;
+      transition:background-color .15s ease, border-color .15s ease; }
+    .cal-cell:hover { background:#0C1826; border-color:rgba(212,175,55,.5); }
+    .cal-cell.empty { background:transparent; border-color:transparent; cursor:default; }
+    .cal-cell.today { border-color:rgba(212,175,55,.6); box-shadow:inset 0 0 0 1px rgba(212,175,55,.35); }
+    .cal-cell.sel { border-color:#D4AF37; background:rgba(212,175,55,.10); }
+    .cal-daynum { font-family:'Space Mono',monospace; font-size:.72rem; color:#E6DBC3; }
+    .cal-cell.today .cal-daynum { color:#ECD27E; font-weight:700; }
+    .cal-ev { margin-top:.18rem; font-size:.58rem; line-height:1.25; padding:.06rem .3rem; border-radius:5px;
+      background:rgba(212,175,55,.2); color:#F3E4BE; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      transition:background-color .15s ease; }
+    .cal-ev:hover { background:rgba(212,175,55,.34); }
+    .cal-more { font-size:.55rem; color:#D4AF37; margin-top:.1rem; }
+    @media (max-width: 820px){ #calTool{ grid-template-columns:1fr !important; } }
+  </style>
+</head>
+
+<body class="font-body" data-page="calendar">
+  <div class="bg-fx"></div>
+  <div class="grain"></div>
+
+  <header class="site-head">
+    <div class="container-x h-16 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center gap-3 shrink-0" aria-label="MOMO home">
+        <img src="brand/logo.png" alt="MOMO" class="h-10 w-auto object-contain" />
+        <span class="display font-bold text-[17px] tracking-[.22em] text-ink hidden md:inline">MOMO</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Home</a>
+        <a href="oracle.html" data-nav="oracle">Oracle</a>
+        <a href="study.html" data-nav="study">Study</a>
+        <a href="calendar.html" data-nav="calendar">Calendar</a>
+        <a href="pipelines.html" data-nav="pipelines">Pipelines</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container-x pb-16">
+    <div class="page-head">
+      <div class="eyebrow">Private · Google Calendar</div>
+      <h1>My Calendar</h1>
+      <p>See the month at a glance, and create or edit events — click a day to start a new one.</p>
+    </div>
+
+    <section id="calSec" class="card p-6" data-mascot="peek tr">
+      <div id="calMsg" class="mono text-xs text-gold-l mb-3" style="min-height:1rem;"></div>
+
+      <div id="calTool" class="grid gap-6" style="grid-template-columns:1.25fr 1fr;">
+        <!-- month grid -->
+        <div class="card-2 p-5">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div class="display text-lg text-ink" id="calMonthLabel">—</div>
+            <div class="flex items-center gap-1.5">
+              <button id="calPrev" class="cal-nav" type="button" aria-label="Previous month">‹</button>
+              <button id="calToday" class="btn btn-ghost text-xs" type="button">Today</button>
+              <button id="calNext" class="cal-nav" type="button" aria-label="Next month">›</button>
+              <button id="calRefresh" class="btn btn-ghost text-xs" type="button">Refresh</button>
+            </div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <!-- create / edit form -->
+        <div class="card-2 p-5">
+          <div class="eyebrow mb-4" id="calFormTitle">New event</div>
+          <input type="hidden" id="calEventId" />
+          <label class="flabel">Title</label>
+          <input id="calTitle" class="field" placeholder="Event title" />
+          <div class="grid grid-cols-2 gap-3 mt-3">
+            <div><label class="flabel">Start</label><input id="calStart" type="datetime-local" class="field" /></div>
+            <div><label class="flabel">End</label><input id="calEnd" type="datetime-local" class="field" /></div>
+          </div>
+          <label class="flabel mt-3" style="margin-top:.75rem;">Location</label>
+          <input id="calLoc" class="field" placeholder="(optional)" />
+          <label class="flabel" style="margin-top:.75rem;">Description</label>
+          <textarea id="calDesc" rows="2" class="field resize-y" placeholder="(optional)"></textarea>
+          <label class="flabel" style="margin-top:.75rem;">Repeat</label>
+          <div class="grid grid-cols-3 gap-2 items-center">
+            <select id="calRepeat" class="field" style="padding:.55rem .5rem;">
+              <option value="none">Doesn't repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            <div class="flex items-center gap-2"><span class="mono text-[.66rem] text-muted shrink-0">every</span><input id="calInterval" type="number" min="1" value="1" class="field" /></div>
+            <input id="calUntil" type="date" title="Repeat until (optional)" class="field" />
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button id="calSave" class="btn btn-gold text-sm">Create event</button>
+            <button id="calCancel" class="btn btn-ghost text-sm hidden">Cancel edit</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line" style="background:#07101B;">
+    <div class="container-x py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <a href="index.html" class="flex items-center gap-3"><img src="brand/logo.png" alt="MOMO" class="h-9 w-auto object-contain" /></a>
+      <div class="mono text-xs text-muted">© 2026 MOMO · Answers, with their receipts.</div>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+  <script src="assets/site.js"></script>
+
+  <!-- ===== My Calendar — talks to /api/gcal ===== -->
+  <script>
+  (function(){
+    const $ = s => document.querySelector(s);
+    const API = (location.protocol.startsWith('http') ? location.origin : '') + '/api/gcal';
+    const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    let EVENTS = [];
+
+    const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    function setMsg(t, isErr){ const m=$('#calMsg'); m.textContent=t||''; m.style.color = isErr ? '#D26B66' : '#ECD27E'; }
+
+    async function api(action, extra){
+      const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ action, timeZone:TZ }, extra||{})) });
+      let j; try { j = await r.json(); } catch(_) { j = { error:'Bad server response ('+r.status+')' }; }
+      if (!r.ok || j.error) throw new Error(j.error || ('HTTP '+r.status));
+      return j;
+    }
+
+    const pad = n => String(n).padStart(2,'0');
+    const toLocalInput = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    const dateKey = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    function evStart(ev){ const v = ev && ev.start && (ev.start.dateTime || ev.start.date); return v ? new Date(v) : null; }
+    function evKey(ev){ const d = evStart(ev); return d ? dateKey(d) : null; }
+
+    // month-grid view state
+    const _t0 = new Date();
+    let viewY = _t0.getFullYear(), viewM = _t0.getMonth(), selKey = null;
+
+    function prefillNew(){
+      const s = new Date(); s.setMinutes(0,0,0); s.setHours(s.getHours()+1);
+      const e = new Date(s); e.setHours(e.getHours()+1);
+      $('#calStart').value = toLocalInput(s); $('#calEnd').value = toLocalInput(e);
+    }
+
+    function syncRepeat(){
+      const on = $('#calRepeat').value !== 'none';
+      $('#calInterval').disabled = !on; $('#calUntil').disabled = !on;
+    }
+    function clearRepeat(){ $('#calRepeat').value='none'; $('#calInterval').value='1'; $('#calUntil').value=''; syncRepeat(); }
+
+    function resetForm(){
+      $('#calEventId').value=''; $('#calTitle').value=''; $('#calLoc').value=''; $('#calDesc').value='';
+      clearRepeat();
+      $('#calFormTitle').textContent='New event';
+      $('#calSave').textContent='Create event';
+      $('#calCancel').classList.add('hidden');
+      prefillNew();
+    }
+    function startEdit(ev){
+      $('#calEventId').value = ev.id;
+      $('#calTitle').value = ev.summary || '';
+      $('#calLoc').value = ev.location || '';
+      $('#calDesc').value = ev.description || '';
+      if (ev.start && ev.start.dateTime) $('#calStart').value = toLocalInput(new Date(ev.start.dateTime));
+      if (ev.end && ev.end.dateTime) $('#calEnd').value = toLocalInput(new Date(ev.end.dateTime));
+      clearRepeat();   // list returns single instances; recurrence is edited as a fresh rule
+      $('#calFormTitle').textContent = 'Editing: ' + (ev.summary || '(no title)');
+      $('#calSave').textContent = 'Save changes';
+      $('#calCancel').classList.remove('hidden');
+      selKey = evKey(ev); renderGrid();
+      $('#calSec').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    // Click a day → start a fresh event on that day (9–10am default).
+    function selectDay(key){
+      const [y,m,dd] = key.split('-').map(Number);
+      resetForm();
+      const s = new Date(y, m-1, dd, 9, 0, 0, 0), e = new Date(y, m-1, dd, 10, 0, 0, 0);
+      $('#calStart').value = toLocalInput(s); $('#calEnd').value = toLocalInput(e);
+      selKey = key; renderGrid(); setMsg('New event on '+s.toLocaleDateString([], {month:'short',day:'numeric'})+' — fill it in and create.');
+    }
+
+    const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    function renderGrid(){
+      $('#calMonthLabel').textContent = new Date(viewY, viewM, 1).toLocaleDateString([], {month:'long', year:'numeric'});
+      const startDow = new Date(viewY, viewM, 1).getDay();
+      const days = new Date(viewY, viewM+1, 0).getDate();
+      const todayKey = dateKey(new Date());
+      const byDay = {};
+      EVENTS.forEach(ev => { const k = evKey(ev); if (k) (byDay[k] = byDay[k] || []).push(ev); });
+
+      let html = WD.map(d => '<div class="cal-wd">'+d+'</div>').join('');
+      for (let i=0;i<startDow;i++) html += '<div class="cal-cell empty"></div>';
+      for (let day=1; day<=days; day++){
+        const k = dateKey(new Date(viewY, viewM, day));
+        const evs = byDay[k] || [];
+        let cls = 'cal-cell';
+        if (k===todayKey) cls += ' today';
+        if (k===selKey)   cls += ' sel';
+        html += '<div class="'+cls+'" data-day="'+k+'">';
+        html += '<div class="cal-daynum">'+day+'</div>';
+        evs.slice(0,3).forEach(ev => {
+          html += '<div class="cal-ev" data-ev="'+EVENTS.indexOf(ev)+'" title="'+esc(ev.summary||'(no title)')+'">'+esc(ev.summary||'(no title)')+'</div>';
+        });
+        if (evs.length>3) html += '<div class="cal-more">+'+(evs.length-3)+' more</div>';
+        html += '</div>';
+      }
+      const grid = $('#calGrid');
+      grid.innerHTML = html;
+      grid.querySelectorAll('.cal-cell[data-day]').forEach(c => c.addEventListener('click', e => {
+        if (e.target.closest('.cal-ev')) return;
+        selectDay(c.dataset.day);
+      }));
+      grid.querySelectorAll('.cal-ev[data-ev]').forEach(chip => chip.addEventListener('click', e => {
+        e.stopPropagation(); startEdit(EVENTS[+chip.dataset.ev]);
+      }));
+    }
+
+    async function load(){
+      setMsg('Loading…');
+      try {
+        EVENTS = (await api('list')).events || [];
+        renderGrid();
+        setMsg(EVENTS.length ? '' : 'No upcoming events — click a day to add one.');
+      } catch(e){ setMsg(e.message, true); renderGrid(); }
+    }
+
+    async function save(){
+      const id = $('#calEventId').value;
+      const payload = {
+        summary: $('#calTitle').value.trim(), start: $('#calStart').value, end: $('#calEnd').value,
+        location: $('#calLoc').value.trim(), description: $('#calDesc').value.trim(),
+        repeat: $('#calRepeat').value, interval: $('#calInterval').value, until: $('#calUntil').value,
+      };
+      if (!payload.summary){ setMsg('Title is required.', true); return; }
+      if (!payload.start || !payload.end){ setMsg('Start and end are required.', true); return; }
+      $('#calSave').disabled = true; setMsg(id ? 'Saving…' : 'Creating…');
+      try {
+        if (id){ payload.id = id; await api('update', payload); setMsg('Event updated.'); }
+        else { await api('create', payload); setMsg('Event created.'); }
+        selKey = null; resetForm(); await load();
+      } catch(e){ setMsg(e.message, true); }
+      finally { $('#calSave').disabled = false; }
+    }
+
+    function shiftMonth(delta){
+      viewM += delta;
+      if (viewM < 0){ viewM = 11; viewY--; } else if (viewM > 11){ viewM = 0; viewY++; }
+      renderGrid();
+    }
+
+    $('#calPrev').addEventListener('click', () => shiftMonth(-1));
+    $('#calNext').addEventListener('click', () => shiftMonth(1));
+    $('#calToday').addEventListener('click', () => { const t=new Date(); viewY=t.getFullYear(); viewM=t.getMonth(); selectDay(dateKey(t)); });
+    $('#calSave').addEventListener('click', save);
+    $('#calCancel').addEventListener('click', () => { selKey=null; resetForm(); renderGrid(); });
+    $('#calRefresh').addEventListener('click', load);
+    $('#calRepeat').addEventListener('change', syncRepeat);
+    resetForm(); renderGrid(); load();
+  })();
+  </script>
+</body>
+</html>
