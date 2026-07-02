@@ -2,11 +2,16 @@
 Vercel Python serverless function: Google Calendar create/edit tool.
 
 POST /api/gcal  with a JSON body:
-  { "action": "list" }
+  { "action": "list" }                                  -> next 15 upcoming events
+  { "action": "list", "timeMin": "...", "timeMax": "..." }  -> all events in the range (max 250)
   { "action": "create",
     "summary": "Title", "start": "2026-06-23T15:00", "end": "2026-06-23T16:00",
     "timeZone": "Africa/Cairo", "location": "...", "description": "..." }
+  { "action": "create", "allDay": true, "start": "2026-06-23", "end": "2026-06-24", ... }
+    (all-day start/end are dates, END INCLUSIVE as the user sees it — +1 day is added here
+     because Google stores the end date exclusive)
   { "action": "update", "id": "<eventId>", ...same optional fields... }
+  { "action": "delete", "id": "<eventId>" }
 
 The function acts as the site owner via a CALENDAR-ONLY OAuth refresh token. Access is
 gated by Vercel Deployment Protection (the whole site sits behind Vercel login), so this
@@ -17,7 +22,7 @@ Vercel — never the repo:
 Standard library only — no third-party dependencies.
 """
 from http.server import BaseHTTPRequestHandler
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 import urllib.request
@@ -100,10 +105,18 @@ def _event_body(p):
     if p.get("location") is not None:
         ev["location"] = p["location"]
     tz = p.get("timeZone") or "UTC"
-    if p.get("start"):
-        ev["start"] = {"dateTime": _rfc3339(p["start"]), "timeZone": tz}
-    if p.get("end"):
-        ev["end"] = {"dateTime": _rfc3339(p["end"]), "timeZone": tz}
+    if p.get("allDay"):
+        # date-only events; Google's end date is exclusive, the UI's is inclusive
+        if p.get("start"):
+            ev["start"] = {"date": str(p["start"])[:10]}
+        if p.get("end"):
+            end = datetime.strptime(str(p["end"])[:10], "%Y-%m-%d") + timedelta(days=1)
+            ev["end"] = {"date": end.strftime("%Y-%m-%d")}
+    else:
+        if p.get("start"):
+            ev["start"] = {"dateTime": _rfc3339(p["start"]), "timeZone": tz}
+        if p.get("end"):
+            ev["end"] = {"dateTime": _rfc3339(p["end"]), "timeZone": tz}
     rule = _rrule(p)
     if rule:
         ev["recurrence"] = [rule]
@@ -139,9 +152,14 @@ class handler(BaseHTTPRequestHandler):
             token = _access_token()
 
             if action == "list":
-                data = _calendar(EVENTS_URL, "GET", token, query={
-                    "timeMin": datetime.now(timezone.utc).isoformat(),
-                    "maxResults": 15, "singleEvents": "true", "orderBy": "startTime"})
+                query = {"singleEvents": "true", "orderBy": "startTime"}
+                if p.get("timeMin") and p.get("timeMax"):
+                    query.update({"timeMin": p["timeMin"], "timeMax": p["timeMax"],
+                                  "maxResults": 250})
+                else:
+                    query.update({"timeMin": datetime.now(timezone.utc).isoformat(),
+                                  "maxResults": 15})
+                data = _calendar(EVENTS_URL, "GET", token, query=query)
                 events = [{
                     "id": e.get("id"), "summary": e.get("summary"),
                     "start": e.get("start"), "end": e.get("end"),
@@ -164,6 +182,13 @@ class handler(BaseHTTPRequestHandler):
                 data = _calendar(url, "PATCH", token, body=_event_body(p))
                 return self._send(200, {"message": "Event updated.",
                                         "event": {"id": data.get("id"), "htmlLink": data.get("htmlLink")}})
+
+            if action == "delete":
+                if not p.get("id"):
+                    return self._send(400, {"error": "id is required to delete an event."})
+                url = EVENTS_URL + "/" + urllib.parse.quote(p["id"])
+                _calendar(url, "DELETE", token)
+                return self._send(200, {"message": "Event deleted."})
 
             return self._send(400, {"error": "Unknown action: " + str(action)})
 

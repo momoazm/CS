@@ -35,6 +35,14 @@
       transition:background-color .15s ease; }
     .cal-ev:hover { background:rgba(212,175,55,.34); }
     .cal-more { font-size:.55rem; color:#D4AF37; margin-top:.1rem; }
+    .cal-ev.ad { background:rgba(212,175,55,.08); border-left:2px solid #D4AF37; }
+    .ag-item { display:flex; align-items:baseline; gap:.6rem; padding:.45rem .55rem; border-radius:9px;
+      border:1px solid transparent; cursor:pointer; transition:background-color .15s ease, border-color .15s ease; }
+    .ag-item:hover { background:#0C1826; border-color:rgba(212,175,55,.4); }
+    .ag-when { font-family:'Space Mono',monospace; font-size:.6rem; color:#D4AF37; white-space:nowrap; min-width:86px; }
+    .ag-title { font-size:.78rem; color:#E6DBC3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .btn-del { color:#D26B66 !important; border-color:rgba(210,107,102,.45) !important; }
+    .btn-del:hover { background:rgba(210,107,102,.12) !important; }
     @media (max-width: 820px){ #calTool{ grid-template-columns:1fr !important; } }
   </style>
 </head>
@@ -63,7 +71,7 @@
     <div class="page-head">
       <div class="eyebrow">Private · Google Calendar</div>
       <h1>My Calendar</h1>
-      <p>See the month at a glance, and create or edit events — click a day to start a new one.</p>
+      <p>See the month at a glance, and create, edit or delete events — click a day to start a new one, or flip on “All day” for date-only events.</p>
     </div>
 
     <section id="calSec" class="card p-6" data-mascot="peek tr">
@@ -83,12 +91,20 @@
           </div>
           <div class="cal-grid" id="calGrid"></div>
         </div>
-        <!-- create / edit form -->
+        <!-- create / edit form + agenda -->
+        <div class="grid gap-6" style="align-content:start;">
         <div class="card-2 p-5">
-          <div class="eyebrow mb-4" id="calFormTitle">New event</div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="eyebrow" id="calFormTitle" style="margin-bottom:0;">New event</div>
+            <a id="calGLink" href="#" target="_blank" rel="noopener" class="mono text-[.62rem] text-gold-l hidden hover:underline">Open in Google ↗</a>
+          </div>
           <input type="hidden" id="calEventId" />
           <label class="flabel">Title</label>
           <input id="calTitle" class="field" placeholder="Event title" />
+          <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
+            <input id="calAllDay" type="checkbox" class="accent-[#D4AF37]" />
+            <span class="mono text-[.66rem] text-muted">All day (date only, no times)</span>
+          </label>
           <div class="grid grid-cols-2 gap-3 mt-3">
             <div><label class="flabel">Start</label><input id="calStart" type="datetime-local" class="field" /></div>
             <div><label class="flabel">End</label><input id="calEnd" type="datetime-local" class="field" /></div>
@@ -109,10 +125,17 @@
             <div class="flex items-center gap-2"><span class="mono text-[.66rem] text-muted shrink-0">every</span><input id="calInterval" type="number" min="1" value="1" class="field" /></div>
             <input id="calUntil" type="date" title="Repeat until (optional)" class="field" />
           </div>
-          <div class="flex gap-2 mt-4">
+          <div class="flex gap-2 mt-4 flex-wrap">
             <button id="calSave" class="btn btn-gold text-sm">Create event</button>
             <button id="calCancel" class="btn btn-ghost text-sm hidden">Cancel edit</button>
+            <button id="calDelete" class="btn btn-ghost btn-del text-sm hidden">Delete</button>
           </div>
+        </div>
+        <!-- upcoming agenda -->
+        <div class="card-2 p-5">
+          <div class="eyebrow mb-3">Coming up</div>
+          <div id="calAgenda" class="grid gap-1"><div class="mono text-xs text-muted">Loading…</div></div>
+        </div>
         </div>
       </div>
     </section>
@@ -134,7 +157,8 @@
     const $ = s => document.querySelector(s);
     const API = (location.protocol.startsWith('http') ? location.origin : '') + '/api/gcal';
     const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    let EVENTS = [];
+    let EVENTS = [];      // events of the viewed month (grid)
+    let UPCOMING = [];    // next events regardless of month (agenda)
 
     const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
     function setMsg(t, isErr){ const m=$('#calMsg'); m.textContent=t||''; m.style.color = isErr ? '#D26B66' : '#ECD27E'; }
@@ -150,8 +174,14 @@
     const pad = n => String(n).padStart(2,'0');
     const toLocalInput = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
     const dateKey = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-    function evStart(ev){ const v = ev && ev.start && (ev.start.dateTime || ev.start.date); return v ? new Date(v) : null; }
+    function evStart(ev){
+      if (!ev || !ev.start) return null;
+      if (ev.start.dateTime) return new Date(ev.start.dateTime);
+      if (ev.start.date){ const [y,m,d] = ev.start.date.split('-').map(Number); return new Date(y, m-1, d); } // local, not UTC
+      return null;
+    }
     function evKey(ev){ const d = evStart(ev); return d ? dateKey(d) : null; }
+    const isAllDay = ev => !!(ev && ev.start && ev.start.date);
 
     // month-grid view state
     const _t0 = new Date();
@@ -169,12 +199,31 @@
     }
     function clearRepeat(){ $('#calRepeat').value='none'; $('#calInterval').value='1'; $('#calUntil').value=''; syncRepeat(); }
 
+    // All-day toggle: swap the start/end inputs between datetime-local and date,
+    // converting whatever is currently typed so nothing is lost.
+    function setAllDay(on){
+      $('#calAllDay').checked = on;
+      ['calStart','calEnd'].forEach((id, i) => {
+        const el = document.getElementById(id), v = el.value;
+        if (on && el.type !== 'date'){ el.type = 'date'; el.value = v ? v.slice(0,10) : ''; }
+        else if (!on && el.type !== 'datetime-local'){
+          el.type = 'datetime-local';
+          el.value = v ? v.slice(0,10) + (i ? 'T10:00' : 'T09:00') : '';
+        }
+      });
+    }
+
+    function resetDeleteBtn(){
+      const b = $('#calDelete'); b.textContent = 'Delete'; delete b.dataset.arm;
+    }
     function resetForm(){
       $('#calEventId').value=''; $('#calTitle').value=''; $('#calLoc').value=''; $('#calDesc').value='';
-      clearRepeat();
+      clearRepeat(); setAllDay(false);
       $('#calFormTitle').textContent='New event';
       $('#calSave').textContent='Create event';
       $('#calCancel').classList.add('hidden');
+      $('#calDelete').classList.add('hidden'); resetDeleteBtn();
+      $('#calGLink').classList.add('hidden');
       prefillNew();
     }
     function startEdit(ev){
@@ -182,12 +231,27 @@
       $('#calTitle').value = ev.summary || '';
       $('#calLoc').value = ev.location || '';
       $('#calDesc').value = ev.description || '';
-      if (ev.start && ev.start.dateTime) $('#calStart').value = toLocalInput(new Date(ev.start.dateTime));
-      if (ev.end && ev.end.dateTime) $('#calEnd').value = toLocalInput(new Date(ev.end.dateTime));
+      if (isAllDay(ev)){
+        setAllDay(true);
+        $('#calStart').value = ev.start.date;
+        // Google stores the end date exclusive; show it inclusive
+        if (ev.end && ev.end.date){
+          const [y,m,d] = ev.end.date.split('-').map(Number);
+          const inc = new Date(y, m-1, d); inc.setDate(inc.getDate()-1);
+          $('#calEnd').value = dateKey(inc);
+        }
+      } else {
+        setAllDay(false);
+        if (ev.start && ev.start.dateTime) $('#calStart').value = toLocalInput(new Date(ev.start.dateTime));
+        if (ev.end && ev.end.dateTime) $('#calEnd').value = toLocalInput(new Date(ev.end.dateTime));
+      }
       clearRepeat();   // list returns single instances; recurrence is edited as a fresh rule
       $('#calFormTitle').textContent = 'Editing: ' + (ev.summary || '(no title)');
       $('#calSave').textContent = 'Save changes';
       $('#calCancel').classList.remove('hidden');
+      $('#calDelete').classList.remove('hidden'); resetDeleteBtn();
+      const gl = $('#calGLink');
+      if (ev.htmlLink){ gl.href = ev.htmlLink; gl.classList.remove('hidden'); } else gl.classList.add('hidden');
       selKey = evKey(ev); renderGrid();
       $('#calSec').scrollIntoView({behavior:'smooth', block:'start'});
     }
@@ -221,7 +285,7 @@
         html += '<div class="'+cls+'" data-day="'+k+'">';
         html += '<div class="cal-daynum">'+day+'</div>';
         evs.slice(0,3).forEach(ev => {
-          html += '<div class="cal-ev" data-ev="'+EVENTS.indexOf(ev)+'" title="'+esc(ev.summary||'(no title)')+'">'+esc(ev.summary||'(no title)')+'</div>';
+          html += '<div class="cal-ev'+(isAllDay(ev)?' ad':'')+'" data-ev="'+EVENTS.indexOf(ev)+'" title="'+esc(ev.summary||'(no title)')+'">'+esc(ev.summary||'(no title)')+'</div>';
         });
         if (evs.length>3) html += '<div class="cal-more">+'+(evs.length-3)+' more</div>';
         html += '</div>';
@@ -237,13 +301,33 @@
       }));
     }
 
+    function renderAgenda(){
+      const box = $('#calAgenda');
+      if (!UPCOMING.length){ box.innerHTML = '<div class="mono text-xs text-muted">Nothing coming up — click a day to add an event.</div>'; return; }
+      box.innerHTML = UPCOMING.map((ev, i) => {
+        const d = evStart(ev);
+        const when = !d ? '' : isAllDay(ev)
+          ? d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' · all day'
+          : d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        return '<div class="ag-item" data-ag="'+i+'"><span class="ag-when">'+esc(when)+'</span><span class="ag-title">'+esc(ev.summary||'(no title)')+'</span></div>';
+      }).join('');
+      box.querySelectorAll('.ag-item').forEach(it => it.addEventListener('click', () => startEdit(UPCOMING[+it.dataset.ag])));
+    }
+
     async function load(){
       setMsg('Loading…');
+      const monthReq = api('list', {
+        timeMin: new Date(viewY, viewM, 1).toISOString(),
+        timeMax: new Date(viewY, viewM+1, 1).toISOString(),
+      });
+      const upcomingReq = api('list');
       try {
-        EVENTS = (await api('list')).events || [];
+        EVENTS = (await monthReq).events || [];
         renderGrid();
-        setMsg(EVENTS.length ? '' : 'No upcoming events — click a day to add one.');
+        setMsg(EVENTS.length ? '' : 'No events this month — click a day to add one.');
       } catch(e){ setMsg(e.message, true); renderGrid(); }
+      try { UPCOMING = (await upcomingReq).events || []; renderAgenda(); }
+      catch(e){ $('#calAgenda').innerHTML = '<div class="mono text-xs" style="color:#D26B66;">'+esc(e.message)+'</div>'; }
     }
 
     async function save(){
@@ -252,9 +336,11 @@
         summary: $('#calTitle').value.trim(), start: $('#calStart').value, end: $('#calEnd').value,
         location: $('#calLoc').value.trim(), description: $('#calDesc').value.trim(),
         repeat: $('#calRepeat').value, interval: $('#calInterval').value, until: $('#calUntil').value,
+        allDay: $('#calAllDay').checked,
       };
       if (!payload.summary){ setMsg('Title is required.', true); return; }
       if (!payload.start || !payload.end){ setMsg('Start and end are required.', true); return; }
+      if (payload.allDay && payload.end < payload.start){ setMsg('End date is before the start date.', true); return; }
       $('#calSave').disabled = true; setMsg(id ? 'Saving…' : 'Creating…');
       try {
         if (id){ payload.id = id; await api('update', payload); setMsg('Event updated.'); }
@@ -264,19 +350,40 @@
       finally { $('#calSave').disabled = false; }
     }
 
+    // Deleting is irreversible — first click arms the button, second click within 4s confirms.
+    async function del(){
+      const id = $('#calEventId').value; if (!id) return;
+      const b = $('#calDelete');
+      if (!b.dataset.arm){
+        b.dataset.arm = '1'; b.textContent = 'Confirm delete?';
+        setTimeout(resetDeleteBtn, 4000);
+        return;
+      }
+      b.disabled = true; setMsg('Deleting…');
+      try { await api('delete', { id }); setMsg('Event deleted.'); selKey=null; resetForm(); await load(); }
+      catch(e){ setMsg(e.message, true); resetDeleteBtn(); }
+      finally { b.disabled = false; }
+    }
+
     function shiftMonth(delta){
       viewM += delta;
       if (viewM < 0){ viewM = 11; viewY--; } else if (viewM > 11){ viewM = 0; viewY++; }
-      renderGrid();
+      renderGrid(); load();   // re-fetch: the grid shows the viewed month's events
     }
 
     $('#calPrev').addEventListener('click', () => shiftMonth(-1));
     $('#calNext').addEventListener('click', () => shiftMonth(1));
-    $('#calToday').addEventListener('click', () => { const t=new Date(); viewY=t.getFullYear(); viewM=t.getMonth(); selectDay(dateKey(t)); });
+    $('#calToday').addEventListener('click', () => {
+      const t=new Date(), reload = t.getFullYear()!==viewY || t.getMonth()!==viewM;
+      viewY=t.getFullYear(); viewM=t.getMonth(); selectDay(dateKey(t));
+      if (reload) load();
+    });
     $('#calSave').addEventListener('click', save);
     $('#calCancel').addEventListener('click', () => { selKey=null; resetForm(); renderGrid(); });
+    $('#calDelete').addEventListener('click', del);
     $('#calRefresh').addEventListener('click', load);
     $('#calRepeat').addEventListener('change', syncRepeat);
+    $('#calAllDay').addEventListener('change', () => setAllDay($('#calAllDay').checked));
     resetForm(); renderGrid(); load();
   })();
   </script>
